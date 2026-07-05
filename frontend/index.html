@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" class="h-full w-full">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Google Fonts: Inter (Body) & Plus Jakarta Sans (Headings) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <title>ITSM ServiceDesk Console</title>
+    <script>
+      (function() {
+        try {
+          var savedTheme = localStorage.getItem('theme');
+          var isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (savedTheme === 'dark' || (savedTheme === 'system' && isSystemDark) || (!savedTheme && isSystemDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-zinc-50 text-zinc-900 font-sans antialiased text-sm h-full w-full m-0 p-0">
+    <div id="root" class="h-full w-full m-0 p-0"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

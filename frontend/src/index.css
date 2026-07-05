@@ -1,0 +1,840 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap');
+
+@import "tailwindcss";
+
+/* ============================================================
+   ENTERPRISE DESIGN SYSTEM — SEMANTIC TOKEN ARCHITECTURE
+   Inspired by: GitHub, Linear, Stripe Dashboard, Vercel
+   ============================================================ */
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================================
+   PHASE 1: DESIGN TOKEN DEFINITIONS
+   ============================================================ */
+
+@layer base {
+  :root {
+    /* ── BRAND INITIAL DEFAULT VARIABLES ── */
+    --brand-primary:        #2563eb;
+    --brand-primary-hover:  #1d4ed8;
+    --brand-primary-light:  rgba(37, 99, 235, 0.1);
+    --brand-primary-border: rgba(37, 99, 235, 0.2);
+    --brand-primary-ring:   rgba(37, 99, 235, 0.4);
+    --brand-primary-text:   #ffffff;
+
+    /* Page & Layout */
+    --ds-bg:                #F4F5F7;          /* Very light gray — NOT white */
+    --ds-surface:           #FFFFFF;          /* Card / content surface */
+    --ds-surface-raised:    #F6F8FA;          /* Elevated surface (table header, filterbar) */
+    --ds-surface-overlay:   #FFFFFF;          /* Modals, drawers, dropdowns */
+    --ds-navbar:            #FFFFFF;          /* Top navigation bar */
+
+    /* Sidebar — Professional Light */
+    --ds-sidebar-bg:        #f6f8fa;
+    --ds-sidebar-border:    #d0d7de;
+    --ds-sidebar-text:      #57606a;
+    --ds-sidebar-text-hover:#1f2328;
+    --ds-sidebar-active-bg: #eaeef2;
+    --ds-sidebar-active-text:#1f2328;
+    --ds-sidebar-icon:      #6e7681;
+    --ds-sidebar-icon-active: var(--brand-primary);
+    --ds-sidebar-section:   #57606a;
+    --ds-sidebar-header:    #f6f8fa;
+
+    /* Borders & Dividers */
+    --ds-border:            #D0D7DE;          /* Default border (light gray) */
+    --ds-border-strong:     #AFB8C1;          /* Stronger border */
+    --ds-divider:           #EAEEF2;          /* Subtle dividers */
+
+    /* Typography */
+    --ds-text-primary:      #1F2328;          /* High contrast body text */
+    --ds-text-secondary:    #656D76;          /* Secondary / supporting text */
+    --ds-text-muted:        #9198A1;          /* Placeholder, tertiary labels */
+    --ds-text-inverse:      #FFFFFF;          /* Text on dark backgrounds */
+
+    /* Brand / Accent */
+    --ds-accent:            var(--brand-primary);          /* Primary action blue */
+    --ds-accent-hover:      var(--brand-primary-hover);
+    --ds-accent-subtle:     var(--brand-primary-light);          /* Very light accent background */
+    --ds-accent-emphasis:   var(--brand-primary-hover);
+    --ds-primary:           var(--brand-primary);
+
+    /* Semantic Status Colors */
+    --ds-success:           #1A7F37;
+    --ds-success-subtle:    #DAFBE1;
+    --ds-success-emphasis:  #1A7F37;
+    --ds-warning:           #9A6700;
+    --ds-warning-subtle:    #FFF8C5;
+    --ds-warning-emphasis:  #9A6700;
+    --ds-danger:            #D1242F;
+    --ds-danger-subtle:     #FFEBE9;
+    --ds-danger-emphasis:   #D1242F;
+    --ds-info:              #0550AE;
+    --ds-info-subtle:       #DDF4FF;
+
+    /* Interactive States */
+    --ds-hover:             #F3F4F6;
+    --ds-hover-overlay:     rgba(31, 35, 40, 0.06);
+    --ds-selected:          #EEF2FF;
+    --ds-selected-border:   var(--brand-primary);
+    --ds-focus-ring:        var(--brand-primary-ring);
+
+    /* Form Inputs */
+    --ds-input-bg:          #FFFFFF;
+    --ds-input-border:      #D0D7DE;
+    --ds-input-border-focus: var(--brand-primary);
+    --ds-input-placeholder: #9198A1;
+    --ds-input-disabled:    #F6F8FA;
+
+    /* Shadows */
+    --ds-shadow-sm:         0 1px 2px rgba(31, 35, 40, 0.06);
+    --ds-shadow-md:         0 3px 6px rgba(31, 35, 40, 0.12);
+    --ds-shadow-lg:         0 8px 24px rgba(31, 35, 40, 0.16);
+    --ds-shadow-overlay:    0 16px 32px rgba(31, 35, 40, 0.20);
+
+    /* Badge backgrounds (light variants) */
+    --ds-badge-blue-bg:     var(--brand-primary-light, #DDF4FF);
+    --ds-badge-blue-text:   var(--brand-primary-hover, #0550AE);
+    --ds-badge-green-bg:    #DAFBE1;
+    --ds-badge-green-text:  #1A7F37;
+    --ds-badge-red-bg:      #FFEBE9;
+    --ds-badge-red-text:    #D1242F;
+    --ds-badge-yellow-bg:   #FFF8C5;
+    --ds-badge-yellow-text: #9A6700;
+    --ds-badge-purple-bg:   #F3EDFF;
+    --ds-badge-purple-text: #6639BA;
+    --ds-badge-gray-bg:     #F6F8FA;
+    --ds-badge-gray-text:   #656D76;
+
+    /* Chart Colors */
+    --ds-chart-grid:        #EAEEF2;
+    --ds-chart-axis:        #9198A1;
+    --ds-chart-tooltip-bg:  #FFFFFF;
+    --ds-chart-tooltip-border: #D0D7DE;
+    --ds-chart-tooltip-text:#1F2328;
+    --ds-chart-1:           #0969DA;
+    --ds-chart-2:           #1A7F37;
+    --ds-chart-3:           #9A6700;
+    --ds-chart-4:           #D1242F;
+    --ds-chart-5:           #6639BA;
+
+    /* Spacing Scale */
+    --ds-space-4:  4px;
+    --ds-space-8:  8px;
+    --ds-space-12: 12px;
+    --ds-space-16: 16px;
+    --ds-space-20: 20px;
+    --ds-space-24: 24px;
+    --ds-space-32: 32px;
+    --ds-space-40: 40px;
+    --ds-space-48: 48px;
+
+    /* Sizing & Components */
+    --ds-radius-sm: 4px;
+    --ds-radius-md: 6px;
+    --ds-radius-lg: 8px;
+    
+    --ds-height-input: 44px;
+    --ds-height-button: 40px;
+    --ds-height-table-row: 56px;
+    
+    --ds-padding-card: 24px;
+    --ds-padding-page: 32px;
+    --ds-gap-section: 32px;
+    --ds-gap-grid: 24px;
+    
+    --ds-width-container: 1200px;
+    --ds-width-modal: 480px;
+    --ds-width-drawer: 320px;
+
+    /* Typography Scale */
+    --ds-text-xs: 11px;
+    --ds-text-sm: 13px;
+    --ds-text-base: 14px;
+    --ds-text-lg: 16px;
+    --ds-text-xl: 20px;
+    --ds-text-2xl: 24px;
+    
+    /* Icon Sizes */
+    --ds-icon-sm: 14px;
+    --ds-icon-md: 18px;
+    --ds-icon-lg: 20px;
+    
+    /* Badge Sizes */
+    --ds-badge-padding-y: 2px;
+    --ds-badge-padding-x: 8px;
+    --ds-badge-text: 11px;
+    
+    /* Animation Duration */
+    --ds-duration-fast: 150ms;
+    --ds-duration-normal: 200ms;
+    --ds-duration-slow: 300ms;
+  }
+
+  .dark {
+    /* ── DARK MODE: Premium SaaS Design System ── */
+
+    /* Page & Layout */
+    --ds-bg:                #080a0f;          /* Rich slate-black background */
+    --ds-surface:           #0f131c;          /* Card surface background */
+    --ds-surface-raised:    #181e2b;          /* Elevated surface for headers / status */
+    --ds-surface-overlay:   #1c2331;          /* For dropdowns, dialogs, overlays */
+    --ds-navbar:            #0d1118;          /* Header navbar background */
+
+    /* Sidebar — Premium Dark */
+    --ds-sidebar-bg:        #080a0f;
+    --ds-sidebar-border:    #181e2b;
+    --ds-sidebar-text:      #cbd5e1;
+    --ds-sidebar-text-hover:#f8fafc;
+    --ds-sidebar-active-bg: #181e2b;
+    --ds-sidebar-active-text:#f8fafc;
+    --ds-sidebar-icon:      #94a3b8;
+    --ds-sidebar-icon-active: var(--brand-primary);
+    --ds-sidebar-section:   #64748b;
+    --ds-sidebar-header:    #080a0f;
+
+    /* Borders & Dividers */
+    --ds-border:            #1f293d;          /* Defined thin borders */
+    --ds-border-strong:     #374151;          /* Defined heavy borders */
+    --ds-divider:           #181e2b;          /* Soft border divider */
+
+    /* Typography */
+    --ds-text-primary:      #f8fafc;          /* High legibility warm off-white */
+    --ds-text-secondary:    #cbd5e1;          /* Muted slate secondary */
+    --ds-text-muted:        #64748b;          /* Clean slate placeholders */
+    --ds-text-inverse:      #080a0f;
+
+    /* Brand / Accent */
+    --ds-accent:            var(--brand-primary);          /* SaaS enterprise blue */
+    --ds-accent-hover:      var(--brand-primary-hover);
+    --ds-accent-subtle:     var(--brand-primary-light);          /* Subtle blue badge background */
+    --ds-accent-emphasis:   var(--brand-primary-hover);
+    --ds-primary:           var(--brand-primary);
+
+    /* Semantic Status Colors */
+    --ds-success:           #10b981;
+    --ds-success-subtle:    rgba(16, 185, 129, 0.12);
+    --ds-success-emphasis:  #059669;
+    --ds-warning:           #f59e0b;
+    --ds-warning-subtle:    rgba(245, 158, 11, 0.12);
+    --ds-warning-emphasis:  #d97706;
+    --ds-danger:            #ef4444;
+    --ds-danger-subtle:     rgba(239, 68, 68, 0.12);
+    --ds-danger-emphasis:   #dc2626;
+    --ds-info:              #3b82f6;
+    --ds-info-subtle:       rgba(59, 130, 246, 0.12);
+
+    /* Interactive States */
+    --ds-hover:             #181e2b;
+    --ds-hover-overlay:     rgba(255, 255, 255, 0.05);
+    --ds-selected:          #1e293b;
+    --ds-selected-border:   var(--brand-primary);
+    --ds-focus-ring:        var(--brand-primary-ring);
+
+    /* Form Inputs */
+    --ds-input-bg:          #080a0f;
+    --ds-input-border:      #1f293d;
+    --ds-input-border-focus: var(--brand-primary);
+    --ds-input-placeholder: #64748b;
+    --ds-input-disabled:    #121620;
+
+    /* Shadows (Elevated Depth for Premium Look) */
+    --ds-shadow-sm:         0 1px 2px rgba(0, 0, 0, 0.5);
+    --ds-shadow-md:         0 4px 12px rgba(0, 0, 0, 0.6);
+    --ds-shadow-lg:         0 12px 24px rgba(0, 0, 0, 0.7);
+    --ds-shadow-overlay:    0 20px 40px rgba(0, 0, 0, 0.85);
+
+    /* Badge backgrounds (dark variants) */
+    --ds-badge-blue-bg:     var(--brand-primary-light, rgba(59, 130, 246, 0.12));
+    --ds-badge-blue-text:   var(--brand-primary-hover, #60a5fa);
+    --ds-badge-green-bg:    rgba(16, 185, 129, 0.12);
+    --ds-badge-green-text:  #34d399;
+    --ds-badge-red-bg:      rgba(239, 68, 68, 0.12);
+    --ds-badge-red-text:    #f87171;
+    --ds-badge-yellow-bg:   rgba(245, 158, 11, 0.12);
+    --ds-badge-yellow-text: #fbbf24;
+    --ds-badge-purple-bg:   rgba(168, 85, 247, 0.12);
+    --ds-badge-purple-text: #c084fc;
+    --ds-badge-gray-bg:     rgba(100, 116, 139, 0.12);
+    --ds-badge-gray-text:   #94a3b8;
+
+    /* Chart Colors */
+    --ds-chart-grid:        #1f293d;
+    --ds-chart-axis:        #64748b;
+    --ds-chart-tooltip-bg:  #1c2331;
+    --ds-chart-tooltip-border: #2B3345;
+    --ds-chart-tooltip-text:#f8fafc;
+    --ds-chart-1:           var(--brand-primary);
+    --ds-chart-2:           #10b981;
+    --ds-chart-3:           #f59e0b;
+    --ds-chart-4:           #ef4444;
+    --ds-chart-5:           #a855f7;
+  }
+
+  /* ── GLOBAL BASE STYLES ── */
+  html {
+    color-scheme: light;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--ds-bg);
+    color: var(--ds-text-primary);
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    font-size: 14px;
+    line-height: 1.6;
+    letter-spacing: -0.011em;
+  }
+
+  /* Typography Scale overrides */
+  h1, .h1 {
+    font-size: 36px !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+    letter-spacing: -0.025em !important;
+  }
+  
+  .page-title {
+    font-size: 30px !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+    letter-spacing: -0.022em !important;
+  }
+
+  .section-title, h2, .h2 {
+    font-size: 22px !important;
+    font-weight: 600 !important;
+    line-height: 1.35 !important;
+    letter-spacing: -0.015em !important;
+  }
+
+  .card-title, h3, .h3 {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  .text-small, .small-text {
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+    letter-spacing: -0.005em !important;
+  }
+
+  .text-caption, .caption-text {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    letter-spacing: 0em !important;
+  }
+
+  /* Smooth theme transitions on all elements */
+  *, *::before, *::after {
+    transition-property: background-color, border-color, color;
+    transition-duration: 0.2s;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Disable transitions on specific elements that shouldn't animate */
+  [class*="animate-"], [class*="transform"], svg, img {
+    transition: none;
+  }
+
+  /* Form Elements Brand Accent Coloring */
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"],
+  progress {
+    accent-color: var(--brand-primary) !important;
+  }
+}
+
+/* ============================================================
+   PHASE 2: TAILWIND V4 TOKEN MAPPINGS
+   These expose CSS variables as Tailwind utility classes.
+   e.g. bg-ds-surface, text-ds-primary, border-ds-border
+   ============================================================ */
+
+@theme {
+  /* Typography */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-heading: 'Plus Jakarta Sans', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* ── BACKGROUND TOKENS ── */
+  --color-ds-bg:              var(--ds-bg);
+  --color-ds-surface:         var(--ds-surface);
+  --color-ds-surface-raised:  var(--ds-surface-raised);
+  --color-ds-surface-overlay: var(--ds-surface-overlay);
+  --color-ds-navbar:          var(--ds-navbar);
+  --color-ds-primary:         var(--ds-accent);
+
+  /* Sidebar (always dark) */
+  --color-ds-sidebar:         var(--ds-sidebar-bg);
+  --color-ds-sidebar-header:  var(--ds-sidebar-header);
+  --color-ds-sidebar-active:  var(--ds-sidebar-active-bg);
+
+  /* ── BORDER TOKENS ── */
+  --color-ds-border:          var(--ds-border);
+  --color-ds-border-strong:   var(--ds-border-strong);
+  --color-ds-divider:         var(--ds-divider);
+
+  /* ── TEXT TOKENS ── */
+  --color-ds-text-primary:    var(--ds-text-primary);
+  --color-ds-text-secondary:  var(--ds-text-secondary);
+  --color-ds-text-muted:      var(--ds-text-muted);
+  --color-ds-text-inverse:    var(--ds-text-inverse);
+
+  /* ── ACCENT TOKENS ── */
+  --color-ds-accent:          var(--ds-accent);
+  --color-ds-accent-hover:    var(--ds-accent-hover);
+  --color-ds-accent-subtle:   var(--ds-accent-subtle);
+
+  /* ── STATUS TOKENS ── */
+  --color-ds-success:         var(--ds-success);
+  --color-ds-success-subtle:  var(--ds-success-subtle);
+  --color-ds-warning:         var(--ds-warning);
+  --color-ds-warning-subtle:  var(--ds-warning-subtle);
+  --color-ds-danger:          var(--ds-danger);
+  --color-ds-danger-subtle:   var(--ds-danger-subtle);
+  --color-ds-info:            var(--ds-info);
+  --color-ds-info-subtle:     var(--ds-info-subtle);
+
+  /* ── INTERACTIVE TOKENS ── */
+  --color-ds-hover:           var(--ds-hover);
+  --color-ds-selected:        var(--ds-selected);
+  --color-ds-input-bg:        var(--ds-input-bg);
+  --color-ds-input-border:    var(--ds-input-border);
+
+  /* ── SPACING & SIZING ── */
+  --spacing-ds-4:             var(--ds-space-4);
+  --spacing-ds-8:             var(--ds-space-8);
+  --spacing-ds-12:            var(--ds-space-12);
+  --spacing-ds-16:            var(--ds-space-16);
+  --spacing-ds-20:            var(--ds-space-20);
+  --spacing-ds-24:            var(--ds-space-24);
+  --spacing-ds-32:            var(--ds-space-32);
+  --spacing-ds-40:            var(--ds-space-40);
+  --spacing-ds-48:            var(--ds-space-48);
+
+  --radius-ds-sm:             var(--ds-radius-sm);
+  --radius-ds-md:             var(--ds-radius-md);
+  --radius-ds-lg:             var(--ds-radius-lg);
+
+  --height-ds-input:          var(--ds-height-input);
+  --height-ds-button:         var(--ds-height-button);
+  
+  --text-ds-xs:               var(--ds-text-xs);
+  --text-ds-sm:               var(--ds-text-sm);
+  --text-ds-base:             var(--ds-text-base);
+  --text-ds-lg:               var(--ds-text-lg);
+  --text-ds-xl:               var(--ds-text-xl);
+  --text-ds-2xl:              var(--ds-text-2xl);
+
+  /* ── LEGACY COMPATIBILITY TOKENS ──
+     These map old class names to new tokens so we don't need to
+     rewrite every page file immediately. */
+  --color-background:         var(--ds-bg);
+  --color-surface:            var(--ds-surface);
+  --color-surface-hover:      var(--ds-hover);
+  --color-border-default:     var(--ds-border);
+  --color-border-strong:      var(--ds-border-strong);
+  --color-text-primary:       var(--ds-text-primary);
+  --color-text-secondary:     var(--ds-text-secondary);
+  --color-text-tertiary:      var(--ds-text-muted);
+
+  /* Primary accent scale (for Tailwind indigo-style utilities) */
+  --color-primary-50:   #EFF6FF;
+  --color-primary-100:  #DBEAFE;
+  --color-primary-200:  #BFDBFE;
+  --color-primary-300:  #93C5FD;
+  --color-primary-400:  #60A5FA;
+  --color-primary-500:  #3B82F6;
+  --color-primary-600:  #2563EB;
+  --color-primary-700:  #1D4ED8;
+  --color-primary-800:  #1E40AF;
+  --color-primary-900:  #1E3A8A;
+}
+
+/* ============================================================
+   PHASE 3: GLOBAL COMPONENT CSS — Form Elements
+   ============================================================ */
+
+@layer components {
+  /* ── FORM INPUTS — Semantic token system ── */
+  .ds-input {
+    width: 100%;
+    height: var(--ds-height-input);
+    font-size: var(--ds-text-sm);
+    border-radius: var(--ds-radius-md);
+    border: 1px solid var(--ds-input-border);
+    background-color: var(--ds-input-bg);
+    color: var(--ds-text-primary);
+    padding: 0 12px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .ds-input::placeholder {
+    color: var(--ds-input-placeholder);
+  }
+
+  .ds-input:focus {
+    border-color: var(--ds-input-border-focus);
+    box-shadow: 0 0 0 3px var(--ds-focus-ring);
+  }
+
+  .ds-input:disabled {
+    background-color: var(--ds-input-disabled);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .ds-select {
+    width: 100%;
+    height: var(--ds-height-input);
+    font-size: var(--ds-text-sm);
+    border-radius: var(--ds-radius-md);
+    border: 1px solid var(--ds-input-border);
+    background-color: var(--ds-input-bg);
+    color: var(--ds-text-primary);
+    padding: 0 32px 0 12px;
+    outline: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236E7681' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .ds-select:focus {
+    border-color: var(--ds-input-border-focus);
+    box-shadow: 0 0 0 3px var(--ds-focus-ring);
+  }
+
+  .ds-textarea {
+    width: 100%;
+    font-size: var(--ds-text-sm);
+    border-radius: var(--ds-radius-md);
+    border: 1px solid var(--ds-input-border);
+    background-color: var(--ds-input-bg);
+    color: var(--ds-text-primary);
+    padding: 8px 12px;
+    outline: none;
+    resize: vertical;
+    font-family: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    line-height: 1.5;
+  }
+
+  .ds-textarea::placeholder {
+    color: var(--ds-input-placeholder);
+  }
+
+  .ds-textarea:focus {
+    border-color: var(--ds-input-border-focus);
+    box-shadow: 0 0 0 3px var(--ds-focus-ring);
+  }
+
+  /* ── LABEL ── */
+  .ds-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ds-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 6px;
+  }
+
+  /* ── SCROLLBAR ── */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ── SKELETON ANIMATION ── */
+  .ds-skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--ds-surface-raised) 25%,
+      var(--ds-hover) 50%,
+      var(--ds-surface-raised) 75%
+    );
+    background-size: 200% 100%;
+    animation: ds-shimmer 1.8s infinite;
+    border-radius: 4px;
+  }
+
+  @keyframes ds-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+}
+
+/* ============================================================
+   PHASE 4: INLINE FORM OVERRIDES
+   Replace ad-hoc Tailwind classes in pages with semantic CSS.
+   These classes match what every page form uses currently,
+   mapped to semantic tokens.
+   ============================================================ */
+
+/* These selectors override the common inline pattern used across pages */
+input[type="text"].ds-field,
+input[type="email"].ds-field,
+input[type="password"].ds-field,
+input[type="number"].ds-field,
+input[type="search"].ds-field,
+input[type="tel"].ds-field,
+input[type="url"].ds-field,
+textarea.ds-field,
+select.ds-field {
+  background-color: var(--ds-input-bg) !important;
+  border-color: var(--ds-input-border) !important;
+  color: var(--ds-text-primary) !important;
+}
+
+/* Focus ring for all interactive elements */
+/* Focus ring for all interactive elements */
+*:focus-visible {
+  outline: 2px solid var(--ds-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   PHASE 5: ENTERPRISE UI STYLING & CORE UTILITIES
+   ============================================================ */
+
+/* ── PREMIUM TOGGLE SWITCH ── */
+.ds-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 40px;
+  height: 20px;
+  border-radius: 99px;
+  background-color: var(--ds-border);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.ds-switch-thumb {
+  position: absolute;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+input:checked + .ds-switch {
+  background-color: var(--ds-accent);
+}
+
+input:checked + .ds-switch .ds-switch-thumb {
+  transform: translateX(20px);
+}
+
+input:focus-visible + .ds-switch {
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+
+/* ── PREMIUM TABLES ── */
+.ds-table-container {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: var(--ds-radius-lg);
+  border: 1px solid var(--ds-border);
+  background-color: var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.ds-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  color: var(--ds-text-primary);
+}
+
+.ds-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--ds-surface-raised);
+  border-bottom: 1px solid var(--ds-border);
+  color: var(--ds-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 16px 20px;
+  white-space: nowrap;
+  height: var(--ds-height-table-row);
+}
+
+.ds-table td {
+  padding: 16px 20px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--ds-text-secondary);
+  border-bottom: 1px solid var(--ds-divider);
+  vertical-align: middle;
+  height: var(--ds-height-table-row);
+}
+
+.ds-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ds-table tr {
+  transition: background-color 0.15s ease;
+}
+
+.ds-table tr:hover {
+  background-color: var(--ds-hover) !important;
+}
+
+.ds-table tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.01);
+}
+html.dark .ds-table tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.005);
+}
+
+/* ── GLOBAL SCROLLBAR OVERRIDES ── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ds-border);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ds-border-strong);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* ── CUSTOM BREADCRUMB HOVERS ── */
+.ds-breadcrumb-item {
+  color: var(--ds-text-muted);
+  transition: color 0.15s ease;
+}
+
+.ds-breadcrumb-item:hover {
+  color: var(--ds-text-primary);
+}
+
+.ds-breadcrumb-active {
+  color: var(--ds-text-primary);
+  font-weight: 600;
+}
+
+/* ── COMPATIBILITY DESIGN UTILITIES ── */
+@utility text-primary {
+  color: var(--ds-text-primary);
+}
+@utility text-secondary {
+  color: var(--ds-text-secondary);
+}
+@utility text-tertiary {
+  color: var(--ds-text-muted);
+}
+@utility bg-surface-raised {
+  background-color: var(--ds-surface-raised);
+}
+
+/* ── PREMIUM SIDEBAR SYSTEM ── */
+.ds-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--ds-radius-md);
+  color: var(--ds-sidebar-text);
+  background-color: transparent;
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  cursor: pointer;
+  outline: none;
+}
+
+.ds-sidebar-item:hover {
+  color: var(--ds-sidebar-text-hover);
+  background-color: var(--ds-sidebar-active-bg);
+}
+
+.ds-sidebar-item.active {
+  color: var(--ds-sidebar-active-text);
+  background-color: var(--ds-sidebar-active-bg);
+  font-weight: 600;
+}
+
+.ds-sidebar-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3.5px;
+  border-radius: 0 4px 4px 0;
+  background-color: var(--ds-sidebar-icon-active);
+}
+
+.ds-sidebar-item:focus-visible {
+  outline: 2px solid var(--ds-focus-ring);
+  outline-offset: -2px;
+}
+
+.ds-sidebar-item svg {
+  color: var(--ds-sidebar-icon);
+  transition: color 0.2s ease-in-out;
+}
+
+.ds-sidebar-item:hover svg,
+.ds-sidebar-item.active svg {
+  color: var(--ds-sidebar-icon-active);
+}
+
+.ds-sidebar-section-label {
+  padding: 16px 16px 6px 16px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ds-sidebar-section);
+  margin: 0;
+}
+

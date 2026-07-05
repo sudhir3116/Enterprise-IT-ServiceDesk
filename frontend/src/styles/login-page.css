@@ -1,0 +1,686 @@
+/*
+ * login.css
+ * Dedicated stylesheet for the Login page only.
+ * No Tailwind utility classes — pure CSS Grid layout.
+ */
+
+/* ── Root Layout ────────────────────────────────────────────── */
+.lp-root {
+  display: grid;
+  grid-template-columns: 58% 42%;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ── LEFT PANEL ─────────────────────────────────────────────── */
+.lp-left {
+  position: relative;
+  background-color: #0f172a;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Subtle grid background */
+.lp-grid-overlay {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+.lp-left-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 48px 52px;
+  max-width: 600px;
+  width: 100%;
+}
+
+/* Brand row */
+.lp-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #f8fafc;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+}
+
+.lp-brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: #2563eb;
+  border-radius: 8px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* Hero heading */
+.lp-hero-title {
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: #f8fafc;
+  margin: 0 0 12px 0;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+
+.lp-hero-sub {
+  font-size: 0.95rem;
+  color: #94a3b8;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* Dashboard illustration */
+.lp-illustration {
+  background: #1e293b;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.lp-illu-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  background: #0f172a;
+}
+
+.lp-illu-topbar-left {
+  display: flex;
+  gap: 6px;
+}
+
+.lp-illu-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.lp-illu-dot.red    { background: #f87171; }
+.lp-illu-dot.amber  { background: #fbbf24; }
+.lp-illu-dot.green  { background: #34d399; }
+
+.lp-illu-topbar-label {
+  font-size: 0.7rem;
+  color: #64748b;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+
+/* Stat cards */
+.lp-illu-stats {
+  display: flex;
+  gap: 10px;
+  padding: 14px 14px 10px;
+}
+
+.lp-stat-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #0f172a;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.lp-stat-card.blue   { color: #60a5fa; }
+.lp-stat-card.emerald{ color: #34d399; }
+.lp-stat-card.amber  { color: #fbbf24; }
+
+.lp-stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  line-height: 1;
+}
+
+.lp-stat-label {
+  font-size: 0.65rem;
+  color: #64748b;
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+/* Ticket rows */
+.lp-illu-rows {
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lp-illu-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #0f172a;
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.lp-illu-row-id {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+  font-family: 'Geist Mono', monospace;
+}
+
+.lp-illu-row-title {
+  flex: 1;
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lp-illu-badge {
+  font-size: 0.62rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.lp-illu-badge.red   { background: rgba(239,68,68,.15);  color: #f87171; }
+.lp-illu-badge.amber { background: rgba(251,191,36,.15);  color: #fbbf24; }
+.lp-illu-badge.green { background: rgba(52,211,153,.15);  color: #34d399; }
+
+/* Feature cards */
+.lp-features {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lp-feature-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.lp-feature-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.lp-feature-icon.blue   { background: rgba(96,165,250,.15);  color: #60a5fa; }
+.lp-feature-icon.emerald{ background: rgba(52,211,153,.15);  color: #34d399; }
+.lp-feature-icon.amber  { background: rgba(251,191,36,.15);  color: #fbbf24; }
+
+.lp-feature-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin-bottom: 2px;
+}
+
+.lp-feature-desc {
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+/* ── RIGHT PANEL ─────────────────────────────────────────────── */
+.lp-right {
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 40px 32px;
+  overflow-y: auto;
+}
+
+/* Login card */
+.lp-card {
+  width: 500px;
+  max-width: 100%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 48px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .08);
+}
+
+/* Card logo */
+.lp-card-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.lp-logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: #2563eb;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.9rem;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+
+.lp-logo-text {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+/* Heading */
+.lp-card-heading {
+  margin-bottom: 28px;
+}
+
+.lp-card-heading h2 {
+  margin: 0 0 6px 0;
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.03em;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+
+.lp-card-heading p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+/* Error banner */
+.lp-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 0.83rem;
+  color: #b91c1c;
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+/* Form */
+.lp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Field */
+.lp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lp-field label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Input wrapper */
+.lp-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 54px;
+}
+
+.lp-input-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.lp-input {
+  width: 100%;
+  height: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 0 16px 0 46px;
+  font-size: 0.875rem;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.lp-input::placeholder {
+  color: #94a3b8;
+}
+
+.lp-input:focus {
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+}
+
+.lp-input-error {
+  border-color: #ef4444;
+  background: #fff;
+}
+
+.lp-input-error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, .12);
+}
+
+/* Password toggle button */
+.lp-toggle-pass {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+  line-height: 0;
+}
+
+.lp-toggle-pass:hover { color: #475569; }
+.lp-toggle-pass:focus { outline: none; }
+
+/* Field error text */
+.lp-field-error {
+  font-size: 0.75rem;
+  color: #ef4444;
+  font-weight: 500;
+}
+
+/* Forgot row */
+.lp-forgot-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -6px;
+}
+
+/* Links */
+.lp-link {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.lp-link:hover { color: #1d4ed8; text-decoration: underline; }
+
+/* Primary button */
+.lp-btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 50px;
+  background: #2563eb;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.lp-btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+.lp-btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Spin animation */
+.lp-spin {
+  animation: lp-spin 0.8s linear infinite;
+}
+
+@keyframes lp-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Divider */
+.lp-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.lp-divider::before,
+.lp-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+/* Secondary button */
+.lp-btn-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 48px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.lp-btn-secondary:hover { background: #f8fafc; border-color: #cbd5e1; }
+
+/* ── FOOTER ─────────────────────────────────────────────────── */
+.lp-footer {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.lp-footer-sep { color: #cbd5e1; }
+
+/* ── RESPONSIVE ─────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .lp-root {
+    grid-template-columns: 1fr;
+    height: auto;
+    overflow: auto;
+  }
+
+  .lp-left { display: none; }
+
+  .lp-right {
+    min-height: 100vh;
+    padding: 40px 20px 80px;
+  }
+
+  .lp-card {
+    width: 100%;
+    max-width: 480px;
+    padding: 36px 28px;
+  }
+
+  .lp-footer { bottom: 20px; }
+}
+
+/* ── Dark Mode Overrides ──────────────────────────────────────── */
+html.dark .lp-right,
+.dark .lp-right {
+  background-color: var(--ds-bg);
+}
+
+html.dark .lp-card,
+.dark .lp-card {
+  background-color: var(--ds-surface);
+  border-color: var(--ds-border);
+  box-shadow: var(--ds-shadow-lg);
+}
+
+html.dark .lp-logo-text,
+.dark .lp-logo-text {
+  color: var(--ds-text-primary);
+}
+
+html.dark .lp-card-heading h2,
+.dark .lp-card-heading h2 {
+  color: var(--ds-text-primary);
+}
+
+html.dark .lp-card-heading p,
+.dark .lp-card-heading p {
+  color: var(--ds-text-secondary);
+}
+
+html.dark .lp-field label,
+.dark .lp-field label {
+  color: var(--ds-text-secondary);
+}
+
+html.dark .lp-input,
+.dark .lp-input {
+  background-color: var(--ds-input-bg);
+  border-color: var(--ds-input-border);
+  color: var(--ds-text-primary);
+}
+
+html.dark .lp-input:focus,
+.dark .lp-input:focus {
+  border-color: var(--ds-input-border-focus);
+  background-color: var(--ds-surface);
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+
+html.dark .lp-input::placeholder,
+.dark .lp-input::placeholder {
+  color: var(--ds-input-placeholder);
+}
+
+html.dark .lp-forgot-row .lp-link,
+.dark .lp-forgot-row .lp-link {
+  color: var(--ds-accent);
+}
+
+html.dark .lp-forgot-row .lp-link:hover,
+.dark .lp-forgot-row .lp-link:hover {
+  color: var(--ds-accent-hover);
+}
+
+html.dark .lp-btn-primary,
+.dark .lp-btn-primary {
+  background-color: var(--ds-accent);
+}
+
+html.dark .lp-btn-primary:hover:not(:disabled),
+.dark .lp-btn-primary:hover:not(:disabled) {
+  background-color: var(--ds-accent-hover);
+}
+
+html.dark .lp-divider,
+.dark .lp-divider {
+  color: var(--ds-text-muted);
+}
+
+html.dark .lp-divider::before,
+.dark .lp-divider::after,
+.dark .lp-divider::before,
+.dark .lp-divider::after {
+  background-color: var(--ds-border);
+}
+
+html.dark .lp-btn-secondary,
+.dark .lp-btn-secondary {
+  background-color: var(--ds-surface-raised);
+  border-color: var(--ds-border);
+  color: var(--ds-text-primary);
+}
+
+html.dark .lp-btn-secondary:hover,
+.dark .lp-btn-secondary:hover {
+  background-color: var(--ds-hover);
+  border-color: var(--ds-border-strong);
+}
+
+html.dark .lp-footer,
+.dark .lp-footer {
+  color: var(--ds-text-muted);
+}
+
+html.dark .lp-footer-sep,
+.dark .lp-footer-sep {
+  color: var(--ds-border);
+}
+
+html.dark .lp-error-banner,
+.dark .lp-error-banner {
+  background-color: var(--ds-danger-subtle);
+  border-color: var(--ds-danger-subtle);
+  color: var(--ds-danger);
+}
+
