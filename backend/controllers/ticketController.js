@@ -8,14 +8,14 @@ const Comment = require("../models/Comment");
 // Create Ticket
 const createTicket = async (req, res, next) => {
   try {
-    const { title, description, category, priority, dueDate, department } = req.body;
+    const { title, description, category, impact, urgency, department } = req.body;
 
-    const ticket = await Ticket.create({
+    const ticket = new Ticket({
       title,
       description,
       category,
-      priority,
-      dueDate,
+      impact: impact || "Medium",
+      urgency: urgency || "Medium",
       department,
       createdBy: req.user._id,
       history: [{
@@ -24,25 +24,76 @@ const createTicket = async (req, res, next) => {
       }]
     });
 
+    // Workload-aware Automatic Ticket Assignment (Auto-Routing)
+    try {
+      const agents = await User.find({
+        role: "agent",
+        team: category,
+        accountStatus: "active"
+      });
+
+      if (agents.length > 0) {
+        const agentWorkloads = await Promise.all(agents.map(async (agent) => {
+          const activeCount = await Ticket.countDocuments({
+            assignedTo: agent._id,
+            status: { $in: ["Assigned", "In Progress"] },
+            isDeleted: false
+          });
+          return { agent, activeCount };
+        }));
+
+        // Sort ascending by workload (lowest count first)
+        agentWorkloads.sort((a, b) => a.activeCount - b.activeCount);
+        const bestAgent = agentWorkloads[0].agent;
+
+        ticket.assignedTo = bestAgent._id;
+        ticket.status = "Assigned";
+        ticket.history.push({
+          action: `Auto-assigned to support agent ${bestAgent.name} (Category: ${category})`,
+          performedBy: "System"
+        });
+      } else {
+        ticket.history.push({
+          action: "Awaiting Manual Assignment (No active agents matching category)",
+          performedBy: "System"
+        });
+      }
+    } catch (routeErr) {
+      console.error("Auto-routing error:", routeErr.message);
+      ticket.history.push({
+        action: "Auto-assignment failed, queued for manual review",
+        performedBy: "System"
+      });
+    }
+
+    // Save ticket — triggers Mongoose pre-save hook for priority calculation & due date
+    await ticket.save();
+
     // Write AuditLog for ticket creation
     await logAction("Ticket", ticket._id, "Create Ticket", req.user._id, {
       after: {
         title,
         description,
         category,
-        priority,
-        dueDate,
+        priority: ticket.priority,
+        dueDate: ticket.dueDate,
         ticketNumber: ticket.ticketNumber,
       }
     });
 
-    // Create in-app notifications for admins
+    // Create in-app notifications for admins and assignee
     try {
+      const receivers = [];
       const admins = await User.find({ role: "admin" });
-      const notifPromises = admins.map(admin => Notification.create({
-        recipient: admin._id,
-        title: "New Helpdesk Ticket Created",
-        message: `A new ticket "${title}" has been created by ${req.user.name}.`,
+      receivers.push(...admins.map(a => a._id));
+      if (ticket.assignedTo) {
+        receivers.push(ticket.assignedTo);
+      }
+
+      const notifPromises = [...new Set(receivers)].map(userId => Notification.create({
+        recipient: userId,
+        title: "Incident Activated",
+        message: `Ticket "${title}" (${ticket.ticketNumber}) has been logged and assigned.`,
         ticketId: ticket._id
       }));
       await Promise.all(notifPromises);
@@ -50,64 +101,57 @@ const createTicket = async (req, res, next) => {
       console.error("Failed to create in-app notifications:", notifErr.message);
     }
 
-    // Send Ticket Created HTML Email
+    // Send Ticket Created HTML Email to Requester
     try {
       const emailHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Ticket Created Successfully</title>
-        <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f5f6; color: #333333; margin: 0; padding: 0; }
-          .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-          .header { background: #3b82f6; padding: 24px 20px; text-align: center; color: #ffffff; }
-          .content { padding: 30px 20px; line-height: 1.6; }
-          .card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 20px; margin: 20px 0; }
-          .card h3 { margin-top: 0; color: #1e293b; font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
-          .detail-row { display: flex; margin-bottom: 8px; font-size: 14px; }
-          .detail-label { font-weight: 600; width: 100px; color: #64748b; }
-          .detail-val { color: #0f172a; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h2>IT HelpDesk System</h2>
-          </div>
-          <div class="content">
-            <p style="font-weight: 600; margin-top: 0;">Ticket Created Successfully</p>
-            <p>Your support ticket has been recorded and added to the queue.</p>
-            
-            <div class="card">
-              <h3>Ticket Details</h3>
-              <div class="detail-row">
-                <div class="detail-label">Title:</div>
-                <div class="detail-val">${title}</div>
-              </div>
-              <div class="detail-row">
-                <div class="detail-label">Category:</div>
-                <div class="detail-val">${category}</div>
-              </div>
-              <div class="detail-row">
-                <div class="detail-label">Priority:</div>
-                <div class="detail-val">${priority}</div>
-              </div>
-              ${dueDate ? `
-              <div class="detail-row">
-                <div class="detail-label">Due Date:</div>
-                <div class="detail-val">${new Date(dueDate).toLocaleDateString()}</div>
-              </div>` : ''}
-            </div>
-          </div>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03);">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+          <div style="height: 36px; width: 36px; display: flex; align-items: center; justify-content: center; background: #2563eb; border-radius: 10px; color: #ffffff; font-weight: bold; font-size: 16px;">⚡</div>
+          <span style="font-weight: 750; font-size: 14px; color: #0f172a; letter-spacing: 0.5px; text-transform: uppercase;">Product Support Portal</span>
         </div>
-      </body>
-      </html>
+        <h2 style="font-size: 20px; font-weight: 700; color: #0f172a; margin-top: 0; margin-bottom: 12px;">Ticket Received</h2>
+        <p style="font-size: 14px; color: #475569; line-height: 1.5;">Your support ticket <strong>${ticket.ticketNumber}</strong> has been logged in our queue. Details are listed below:</p>
+        
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+          <p style="margin: 0 0 8px; font-size: 13px; color: #475569;"><strong style="color: #0f172a;">Title:</strong> ${title}</p>
+          <p style="margin: 0 0 8px; font-size: 13px; color: #475569;"><strong style="color: #0f172a;">Category:</strong> ${category}</p>
+          <p style="margin: 0 0 8px; font-size: 13px; color: #475569;"><strong style="color: #0f172a;">Priority:</strong> ${ticket.priority}</p>
+          ${ticket.dueDate ? `<p style="margin: 0; font-size: 13px; color: #475569;"><strong style="color: #0f172a;">Estimated SLA Resolution:</strong> ${new Date(ticket.dueDate).toLocaleString()}</p>` : ''}
+        </div>
+      </div>
       `;
 
-      await sendEmail(req.user.email, "Support Ticket Logged: " + title, emailHtml);
+      await sendEmail(req.user.email, `Support Ticket Logged: ${ticket.ticketNumber}`, emailHtml);
     } catch (mailError) {
       console.error("Mail Send Failure: ", mailError.message);
+    }
+
+    // Send Ticket Assigned HTML Email to Agent
+    if (ticket.assignedTo) {
+      try {
+        const assignedAgent = await User.findById(ticket.assignedTo);
+        if (assignedAgent) {
+          const agentEmailHtml = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03);">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+              <div style="height: 36px; width: 36px; display: flex; align-items: center; justify-content: center; background: #2563eb; border-radius: 10px; color: #ffffff; font-weight: bold; font-size: 16px;">⚡</div>
+              <span style="font-weight: 750; font-size: 14px; color: #0f172a; letter-spacing: 0.5px; text-transform: uppercase;">Product Support Portal</span>
+            </div>
+            <h2 style="font-size: 20px; font-weight: 700; color: #0f172a; margin-top: 0; margin-bottom: 12px;">New Task Assigned</h2>
+            <p style="font-size: 14px; color: #475569; line-height: 1.5;">Hello ${assignedAgent.name},</p>
+            <p style="font-size: 14px; color: #475569; line-height: 1.5;">You have been assigned to investigate incident <strong>${ticket.ticketNumber}</strong>:</p>
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+              <p style="margin: 0 0 8px; font-size: 13px; color: #475569;"><strong style="color: #0f172a;">Title:</strong> ${title}</p>
+              <p style="margin: 0 0 8px; font-size: 13px; color: #475569;"><strong style="color: #0f172a;">Priority:</strong> ${ticket.priority}</p>
+              <p style="margin: 0; font-size: 13px; color: #475569;"><strong style="color: #0f172a;">SLA Due Date:</strong> ${new Date(ticket.dueDate).toLocaleString()}</p>
+            </div>
+          </div>
+          `;
+          await sendEmail(assignedAgent.email, `New Support Assignment: ${ticket.ticketNumber}`, agentEmailHtml);
+        }
+      } catch (agentMailErr) {
+        console.error("Agent assignment email dispatch failed:", agentMailErr.message);
+      }
     }
 
     res.status(201).json({
@@ -160,6 +204,26 @@ const getTickets = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
+
+    // Proactive SLA breach evaluation
+    tickets = await Promise.all(
+      tickets.map(async (t) => {
+        if (!["Resolved", "Closed"].includes(t.status) && t.dueDate && t.dueDate < Date.now() && !t.slaBreached) {
+          t.slaBreached = true;
+          t.history.push({
+            action: "SLA Deadline Breached (System)",
+            performedBy: "System"
+          });
+          await t.save();
+          
+          await logAction("Ticket", t._id, "SLA Breached", "System", {
+            before: { slaBreached: false },
+            after: { slaBreached: true }
+          }).catch(()=>{});
+        }
+        return t;
+      })
+    );
 
     // Populate comments from standalone collection and hide internal ones for requesters
     const ticketsWithComments = await Promise.all(
@@ -559,6 +623,21 @@ const getTicketById = async (req, res, next) => {
       throw new Error("Ticket Not Found");
     }
 
+    // Proactive SLA breach evaluation
+    if (ticket && !["Resolved", "Closed"].includes(ticket.status) && ticket.dueDate && ticket.dueDate < Date.now() && !ticket.slaBreached) {
+      ticket.slaBreached = true;
+      ticket.history.push({
+        action: "SLA Deadline Breached (System)",
+        performedBy: "System"
+      });
+      await ticket.save();
+      
+      await logAction("Ticket", ticket._id, "SLA Breached", "System", {
+        before: { slaBreached: false },
+        after: { slaBreached: true }
+      }).catch(()=>{});
+    }
+
     // Check authorization: Employee/Requester can only view their own tickets
     if (["requester", "employee"].includes(req.user.role) && ticket.createdBy._id.toString() !== req.user._id.toString()) {
       res.status(403);
@@ -601,6 +680,105 @@ const getTicketById = async (req, res, next) => {
   }
 };
 
+// Confirm Ticket Resolution (Requester/Creator only)
+const confirmResolution = async (req, res, next) => {
+  try {
+    const ticketId = req.params.id;
+    const ticket = await Ticket.findOne({ _id: ticketId, isDeleted: false });
+
+    if (!ticket) {
+      res.status(404);
+      throw new Error("Ticket Not Found");
+    }
+
+    const isCreator = ticket.createdBy && ticket.createdBy.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin";
+    if (!isCreator && !isAdmin) {
+      res.status(403);
+      throw new Error("Access Forbidden: Only the ticket owner can confirm resolution.");
+    }
+
+    if (ticket.status !== "Resolved") {
+      res.status(400);
+      throw new Error("Only resolved tickets can be closed.");
+    }
+
+    const beforeStatus = ticket.status;
+    ticket.status = "Closed";
+    ticket.resolvedAt = new Date();
+    ticket.history.push({
+      action: "Ticket Resolution Confirmed by Customer (Incident Closed)",
+      performedBy: req.user.name,
+    });
+    await ticket.save();
+
+    await logAction("Ticket", ticket._id, "Confirm Resolution", req.user._id, {
+      before: { status: beforeStatus },
+      after: { status: "Closed" }
+    });
+
+    res.status(200).json({ message: "Ticket closed successfully", ticket });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Reopen Ticket (Requester/Creator only, when status is Resolved)
+const reopenTicket = async (req, res, next) => {
+  try {
+    const ticketId = req.params.id;
+    const ticket = await Ticket.findOne({ _id: ticketId, isDeleted: false });
+
+    if (!ticket) {
+      res.status(404);
+      throw new Error("Ticket Not Found");
+    }
+
+    const isCreator = ticket.createdBy && ticket.createdBy.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin";
+    if (!isCreator && !isAdmin) {
+      res.status(403);
+      throw new Error("Access Forbidden: Only the ticket owner can reopen a ticket.");
+    }
+
+    if (ticket.status !== "Resolved") {
+      res.status(400);
+      throw new Error("Only resolved tickets can be reopened.");
+    }
+
+    const beforeStatus = ticket.status;
+    ticket.status = "In Progress";
+    ticket.resolvedAt = undefined;
+    ticket.history.push({
+      action: "Ticket Reopened by Customer",
+      performedBy: req.user.name,
+    });
+    await ticket.save();
+
+    await logAction("Ticket", ticket._id, "Reopen Ticket", req.user._id, {
+      before: { status: beforeStatus },
+      after: { status: "In Progress" }
+    });
+
+    if (ticket.assignedTo) {
+      try {
+        await Notification.create({
+          recipient: ticket.assignedTo,
+          title: "Ticket Reopened by Customer",
+          message: `Ticket "${ticket.title}" (${ticket.ticketNumber}) has been reopened by the client.`,
+          ticketId: ticket._id
+        });
+      } catch (err) {
+        console.error("Failed to notify agent about reopen:", err.message);
+      }
+    }
+
+    res.status(200).json({ message: "Ticket reopened successfully", ticket });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createTicket,
   getTickets,
@@ -608,4 +786,6 @@ module.exports = {
   deleteTicket,
   addComment,
   getTicketById,
+  confirmResolution,
+  reopenTicket,
 };

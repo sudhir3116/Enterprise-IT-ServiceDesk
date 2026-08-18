@@ -105,6 +105,22 @@ ticketSchema.pre("save", async function () {
     this.ticketNumber = `TKT-${String(1000 + count + 1).padStart(4, "0")}`;
   }
 
+  // Calculate priority dynamically from impact and urgency
+  if (this.isNew || this.isModified("impact") || this.isModified("urgency")) {
+    const imp = this.impact || "Medium";
+    const urg = this.urgency || "Medium";
+    
+    if (imp === "High" && urg === "High") {
+      this.priority = "Critical";
+    } else if ((imp === "High" && urg === "Medium") || (imp === "Medium" && urg === "High")) {
+      this.priority = "High";
+    } else if (imp === "Medium" && urg === "Medium") {
+      this.priority = "Medium";
+    } else {
+      this.priority = "Low";
+    }
+  }
+
   // Set SLA deadline if not already set
   if (this.isNew && !this.dueDate) {
     const hours = SLA_HOURS[this.priority] || 72;

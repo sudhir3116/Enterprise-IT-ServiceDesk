@@ -11,27 +11,23 @@ import PageHeader from '../components/enterprise/PageHeader'
 import { getUser } from '../services/auth'
 
 const CATEGORIES = ['Hardware', 'Software', 'Network', 'Access/Login', 'Other']
-const IMPACTS = ['Low', 'Moderate', 'Significant', 'Extensive']
-const URGENCIES = ['Low', 'Medium', 'High', 'Critical']
+const IMPACTS = ['Low', 'Medium', 'High']
+const URGENCIES = ['Low', 'Medium', 'High']
 const DEPARTMENTS = ['IT Operations', 'Engineering', 'Human Resources', 'Finance', 'Marketing', 'Sales', 'Legal']
 
 function calculatePriority(impact, urgency) {
-  if (impact === 'Extensive' && ['High', 'Critical'].includes(urgency)) return 'Critical'
-  if (impact === 'Significant' && urgency === 'Critical') return 'Critical'
-  if (impact === 'Extensive' || urgency === 'Critical') return 'High'
-  if (impact === 'Significant' && urgency === 'High') return 'High'
-  if (impact === 'Low' && urgency === 'Low') return 'Low'
-  if (impact === 'Low' && urgency === 'Medium') return 'Low'
-  if (impact === 'Moderate' && urgency === 'Low') return 'Low'
-  return 'Medium'
+  if (impact === 'High' && urgency === 'High') return 'Critical'
+  if ((impact === 'High' && urgency === 'Medium') || (impact === 'Medium' && urgency === 'High')) return 'High'
+  if (impact === 'Medium' && urgency === 'Medium') return 'Medium'
+  return 'Low'
 }
 
 function getSLAPreview(priority) {
   switch (priority) {
     case 'Critical': return { time: '4 Hours',  color: 'red',    desc: 'Critical business impact' }
     case 'High':     return { time: '24 Hours', color: 'yellow', desc: 'Significant disruption' }
-    case 'Medium':   return { time: '3 Days',   color: 'blue',   desc: 'Moderate impact' }
-    default:         return { time: '5 Days',   color: 'gray',   desc: 'Standard request' }
+    case 'Medium':   return { time: '72 Hours', color: 'blue',   desc: 'Moderate impact' }
+    default:         return { time: '120 Hours', color: 'gray',   desc: 'Standard request' }
   }
 }
 

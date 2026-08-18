@@ -9,6 +9,8 @@ const {
   deleteTicket,
   addComment,
   getTicketById,
+  confirmResolution,
+  reopenTicket,
 } = require("../controllers/ticketController");
 
 const {
@@ -21,6 +23,10 @@ router.post("/", protect, requireRole("employee", "requester", "support_engineer
 router.get("/", protect, requireRole("employee", "requester", "support_engineer", "agent", "admin"), getTickets);
 router.get("/:id", protect, requireRole("employee", "requester", "support_engineer", "agent", "admin"), getTicketById);
 router.post("/:id/comments", protect, requireRole("employee", "requester", "support_engineer", "agent", "admin"), addComment);
+
+// Customer resolution confirmation loops
+router.post("/:id/confirm-resolution", protect, confirmResolution);
+router.post("/:id/reopen", protect, reopenTicket);
 
 // Agent & Admin operations
 router.put("/:id", protect, requireRole("support_engineer", "agent", "admin"), updateTicketStatus);

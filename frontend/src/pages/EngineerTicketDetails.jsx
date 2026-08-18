@@ -122,6 +122,33 @@ export default function EngineerTicketDetails() {
     }
   }
 
+  const handleConfirmResolution = async () => {
+    setUpdating(true)
+    try {
+      await api.post(`/tickets/${id}/confirm-resolution`)
+      addToast('Resolution confirmed. Ticket is now Closed.', 'success')
+      await loadTicket()
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to confirm resolution.', 'error')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleReopen = async () => {
+    if (!window.confirm("Are you sure you want to reopen this ticket?")) return
+    setUpdating(true)
+    try {
+      await api.post(`/tickets/${id}/reopen`)
+      addToast('Ticket reopened. Status changed back to In Progress.', 'success')
+      await loadTicket()
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to reopen ticket.', 'error')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   // Post comment
   const handlePostComment = async (e) => {
     e.preventDefault()
@@ -245,6 +272,7 @@ export default function EngineerTicketDetails() {
 
   const slaProgress = getSLAProgress(ticket)
   const isAssignedToMe = ticket.assignedTo?._id === currentUserId || ticket.assignedTo?.id === currentUserId
+  const isCreator = ticket.createdBy?._id === currentUserId || ticket.createdBy?.id === currentUserId || ticket.createdBy === currentUserId
 
   return (
     <div className="flex flex-col gap-6 w-full pb-12">
@@ -261,53 +289,84 @@ export default function EngineerTicketDetails() {
         
         {/* Actions Button panel */}
         <div className="flex items-center gap-2">
-          {!isAssignedToMe && (
-            <Button 
-              variant="primary" 
-              size="sm" 
-              onClick={handleAccept}
-              isLoading={updating}
-              icon={UserCheck}
-            >
-              Accept &amp; Claim
-            </Button>
-          )}
-          
-          {isAssignedToMe && ticket.status !== 'In Progress' && ticket.status !== 'Resolved' && ticket.status !== 'Closed' && (
-            <Button 
-              variant="primary" 
-              size="sm" 
-              onClick={() => handleUpdateStatus('In Progress')}
-              isLoading={updating}
-              icon={Play}
-            >
-              Start Progress
-            </Button>
+          {/* Support Staff Operations */}
+          {['admin', 'support_engineer', 'agent'].includes(currentUser?.role) && (
+            <>
+              {!isAssignedToMe && (
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  onClick={handleAccept}
+                  isLoading={updating}
+                  icon={UserCheck}
+                >
+                  Accept &amp; Claim
+                </Button>
+              )}
+              
+              {isAssignedToMe && ticket.status !== 'In Progress' && ticket.status !== 'Resolved' && ticket.status !== 'Closed' && (
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  onClick={() => handleUpdateStatus('In Progress')}
+                  isLoading={updating}
+                  icon={Play}
+                >
+                  Start Progress
+                </Button>
+              )}
+
+              {isAssignedToMe && ticket.status !== 'Resolved' && ticket.status !== 'Closed' && (
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  onClick={() => handleUpdateStatus('Resolved')}
+                  isLoading={updating}
+                  icon={Check}
+                  style={{ backgroundColor: 'var(--ds-success)' }}
+                >
+                  Resolve Ticket
+                </Button>
+              )}
+
+              {isAssignedToMe && ticket.status === 'Resolved' && (
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  onClick={() => handleUpdateStatus('Closed')}
+                  isLoading={updating}
+                  icon={XCircle}
+                >
+                  Close Ticket
+                </Button>
+              )}
+            </>
           )}
 
-          {isAssignedToMe && ticket.status !== 'Resolved' && ticket.status !== 'Closed' && (
-            <Button 
-              variant="primary" 
-              size="sm" 
-              onClick={() => handleUpdateStatus('Resolved')}
-              isLoading={updating}
-              icon={Check}
-              style={{ backgroundColor: 'var(--ds-success)' }}
-            >
-              Resolve Ticket
-            </Button>
-          )}
-
-          {isAssignedToMe && ticket.status === 'Resolved' && (
-            <Button 
-              variant="secondary" 
-              size="sm" 
-              onClick={() => handleUpdateStatus('Closed')}
-              isLoading={updating}
-              icon={XCircle}
-            >
-              Close Ticket
-            </Button>
+          {/* Customer Confirmation loop */}
+          {isCreator && ticket.status === 'Resolved' && (
+            <>
+              <Button 
+                variant="primary" 
+                size="sm" 
+                onClick={handleConfirmResolution}
+                isLoading={updating}
+                icon={CheckCircle2}
+                style={{ backgroundColor: 'var(--ds-success)' }}
+              >
+                Confirm Resolution
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleReopen}
+                isLoading={updating}
+                icon={AlertTriangle}
+                style={{ borderColor: 'var(--ds-danger)', color: 'var(--ds-danger)' }}
+              >
+                Reopen Ticket
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -589,114 +648,124 @@ export default function EngineerTicketDetails() {
       </div>
 
       {/* BOTTOM SECTION: Conversation Editor (Public / Internal Note inputs) */}
-      <Card className="space-y-4">
-        <div className="flex border-b border-ds-border pb-2.5">
-          <button
-            onClick={() => setActiveNoteTab('public')}
-            className={`px-4 py-2 text-xs font-bold border-b-2 -mb-[12px] transition-all flex items-center gap-1.5 ${
-              activeNoteTab === 'public'
-                ? 'border-[var(--ds-accent)] text-primary font-extrabold'
-                : 'border-transparent text-secondary hover:text-primary'
-            }`}
-          >
-            <MessageSquare size={13} />
-            Public Reply (Visible to Employee)
-          </button>
-          
-          <button
-            onClick={() => setActiveNoteTab('internal')}
-            className={`px-4 py-2 text-xs font-bold border-b-2 -mb-[12px] transition-all flex items-center gap-1.5 ${
-              activeNoteTab === 'internal'
-                ? 'border-amber-400 text-amber-800 dark:text-amber-400 font-extrabold'
-                : 'border-transparent text-secondary hover:text-primary'
-            }`}
-          >
-            <Lock size={12} />
-            Internal Staff Note (Engineers &amp; Admins Only)
-          </button>
-        </div>
-
-        <form onSubmit={handlePostComment} className="space-y-0 pt-3">
-          {/* Rich text editing toolbar */}
-          <div className="flex items-center gap-1 px-3 py-1.5 border border-b-0 border-ds-border bg-ds-surface-raised rounded-t-lg">
-            <button 
-              type="button" 
-              title="Bold" 
-              onClick={() => insertFormatting('**', '**')} 
-              className="p-1 rounded hover:bg-ds-hover text-secondary font-bold text-xs"
-            >
-              B
-            </button>
-            <button 
-              type="button" 
-              title="Italic" 
-              onClick={() => insertFormatting('*', '*')} 
-              className="p-1 rounded hover:bg-ds-hover text-secondary italic text-xs"
-            >
-              I
-            </button>
-            <button 
-              type="button" 
-              title="Inline Code" 
-              onClick={() => insertFormatting('`', '`')} 
-              className="p-1 rounded hover:bg-ds-hover text-secondary font-mono text-[10px]"
-            >
-              `c`
-            </button>
-            <button 
-              type="button" 
-              title="Code Block" 
-              onClick={() => insertFormatting('```\n', '\n```')} 
-              className="p-1 rounded hover:bg-ds-hover text-secondary font-mono text-[11px]"
-            >
-              &lt;/&gt;
-            </button>
-            <button 
-              type="button" 
-              title="Quote" 
-              onClick={() => insertFormatting('> ')} 
-              className="p-1 rounded hover:bg-ds-hover text-secondary text-xs"
-            >
-              &ldquo;
-            </button>
-            <button 
-              type="button" 
-              title="Bullet List" 
-              onClick={() => insertFormatting('- ')} 
-              className="p-1 rounded hover:bg-ds-hover text-secondary text-xs"
-            >
-              &bull; List
-            </button>
-          </div>
-
-          <div className="relative">
-            <textarea
-              id="comment-editor"
-              value={commentText}
-              onChange={e => setCommentText(e.target.value)}
-              placeholder={activeNoteTab === 'internal' ? "Write a private note visible only to support staff..." : "Send an update or request clarification from the employee..."}
-              required
-              rows={4}
-              className="ds-textarea w-full transition-all pr-12 focus:ring-1 rounded-t-none rounded-b-lg"
-              style={activeNoteTab === 'internal' ? { borderColor: 'var(--ds-warning)', focusRing: 'rgba(245, 158, 11, 0.4)' } : {}}
-            />
-            
+      {ticket.status !== 'Closed' ? (
+        <Card className="space-y-4">
+          <div className="flex border-b border-ds-border pb-2.5">
             <button
-              type="submit"
-              disabled={postingComment || !commentText.trim()}
-              className="absolute right-3.5 bottom-3.5 p-2 rounded-lg text-white hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center shrink-0"
-              style={{ 
-                background: activeNoteTab === 'internal' 
-                  ? 'var(--ds-warning)' 
-                  : 'var(--ds-accent)' 
-              }}
-              title="Post Message"
+              onClick={() => setActiveNoteTab('public')}
+              className={`px-4 py-2 text-xs font-bold border-b-2 -mb-[12px] transition-all flex items-center gap-1.5 ${
+                activeNoteTab === 'public'
+                  ? 'border-[var(--ds-accent)] text-primary font-extrabold'
+                  : 'border-transparent text-secondary hover:text-primary'
+              }`}
             >
-              <Send size={13} className={postingComment ? 'animate-spin' : ''} />
+              <MessageSquare size={13} />
+              Public Reply (Visible to Employee)
             </button>
+            
+            {['admin', 'support_engineer', 'agent'].includes(currentUser?.role) && (
+              <button
+                onClick={() => setActiveNoteTab('internal')}
+                className={`px-4 py-2 text-xs font-bold border-b-2 -mb-[12px] transition-all flex items-center gap-1.5 ${
+                  activeNoteTab === 'internal'
+                    ? 'border-amber-400 text-amber-800 dark:text-amber-400 font-extrabold'
+                    : 'border-transparent text-secondary hover:text-primary'
+                }`}
+              >
+                <Lock size={12} />
+                Internal Staff Note (Engineers &amp; Admins Only)
+              </button>
+            )}
           </div>
-        </form>
-      </Card>
+
+          <form onSubmit={handlePostComment} className="space-y-0 pt-3">
+            {/* Rich text editing toolbar */}
+            <div className="flex items-center gap-1 px-3 py-1.5 border border-b-0 border-ds-border bg-ds-surface-raised rounded-t-lg">
+              <button 
+                type="button" 
+                title="Bold" 
+                onClick={() => insertFormatting('**', '**')} 
+                className="p-1 rounded hover:bg-ds-hover text-secondary font-bold text-xs"
+              >
+                B
+              </button>
+              <button 
+                type="button" 
+                title="Italic" 
+                onClick={() => insertFormatting('*', '*')} 
+                className="p-1 rounded hover:bg-ds-hover text-secondary italic text-xs"
+              >
+                I
+              </button>
+              <button 
+                type="button" 
+                title="Inline Code" 
+                onClick={() => insertFormatting('`', '`')} 
+                className="p-1 rounded hover:bg-ds-hover text-secondary font-mono text-[10px]"
+              >
+                `c`
+              </button>
+              <button 
+                type="button" 
+                title="Code Block" 
+                onClick={() => insertFormatting('```\n', '\n```')} 
+                className="p-1 rounded hover:bg-ds-hover text-secondary font-mono text-[11px]"
+              >
+                &lt;/&gt;
+              </button>
+              <button 
+                type="button" 
+                title="Quote" 
+                onClick={() => insertFormatting('> ')} 
+                className="p-1 rounded hover:bg-ds-hover text-secondary text-xs"
+              >
+                &ldquo;
+              </button>
+              <button 
+                type="button" 
+                title="Bullet List" 
+                onClick={() => insertFormatting('- ')} 
+                className="p-1 rounded hover:bg-ds-hover text-secondary text-xs"
+              >
+                &bull; List
+              </button>
+            </div>
+
+            <div className="relative">
+              <textarea
+                id="comment-editor"
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+                placeholder={activeNoteTab === 'internal' ? "Write a private note visible only to support staff..." : "Send an update or request clarification from the employee..."}
+                required
+                rows={4}
+                className="ds-textarea w-full transition-all pr-12 focus:ring-1 rounded-t-none rounded-b-lg"
+                style={activeNoteTab === 'internal' ? { borderColor: 'var(--ds-warning)', focusRing: 'rgba(245, 158, 11, 0.4)' } : {}}
+              />
+              
+              <button
+                type="submit"
+                disabled={postingComment || !commentText.trim()}
+                className="absolute right-3.5 bottom-3.5 p-2 rounded-lg text-white hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                style={{ 
+                  background: activeNoteTab === 'internal' 
+                    ? 'var(--ds-warning)' 
+                    : 'var(--ds-accent)' 
+                }}
+                title="Post Message"
+              >
+                <Send size={13} className={postingComment ? 'animate-spin' : ''} />
+              </button>
+            </div>
+          </form>
+        </Card>
+      ) : (
+        <Card className="p-6 text-center border" style={{ borderColor: 'var(--ds-border)', backgroundColor: 'var(--ds-surface-raised)' }}>
+          <Lock className="w-5 h-5 mx-auto mb-2" style={{ color: 'var(--ds-text-muted)' }} />
+          <h4 className="text-[13px] font-bold" style={{ color: 'var(--ds-text-primary)' }}>This support ticket is closed.</h4>
+          <p className="text-[11.5px] mt-1" style={{ color: 'var(--ds-text-muted)' }}>Replies and internal notes are no longer permitted on this incident request.</p>
+        </Card>
+      )}
 
     </div>
   )
