@@ -43,15 +43,67 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let isMounted = true;
 
+    let isRefreshing = false;
+    let failedQueue = [];
+
+    const processQueue = (error, token = null) => {
+      failedQueue.forEach(prom => {
+        if (error) {
+          prom.reject(error);
+        } else {
+          prom.resolve(token);
+        }
+      });
+      failedQueue = [];
+    };
+
     // 1. Axios Interceptor for 401
     const interceptor = api.interceptors.response.use(
       (response) => response,
-      (error) => {
+      async (error) => {
+        const originalRequest = error.config;
+
         if (error.response && error.response.status === 401) {
-          if (isMounted) {
-            window.toast?.('Session expired. Please log in again.', 'error');
-            performLogout();
-            navigate('/login', { replace: true });
+          if (error.response.data?.error === "TokenExpiredError" && !originalRequest._retry) {
+            if (isRefreshing) {
+              return new Promise(function(resolve, reject) {
+                failedQueue.push({ resolve, reject });
+              }).then(token => {
+                originalRequest.headers['Authorization'] = 'Bearer ' + token;
+                return api(originalRequest);
+              }).catch(err => {
+                return Promise.reject(err);
+              });
+            }
+
+            originalRequest._retry = true;
+            isRefreshing = true;
+
+            try {
+              const res = await api.post('/auth/refresh', {}, { withCredentials: true });
+              const newAccessToken = res.data.accessToken;
+              saveToken(newAccessToken);
+              api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
+              originalRequest.headers['Authorization'] = 'Bearer ' + newAccessToken;
+              processQueue(null, newAccessToken);
+              return api(originalRequest);
+            } catch (err) {
+              processQueue(err, null);
+              if (isMounted) {
+                window.toast?.('Session expired. Please log in again.', 'error');
+                performLogout();
+                navigate('/login', { replace: true });
+              }
+              return Promise.reject(err);
+            } finally {
+              isRefreshing = false;
+            }
+          } else {
+            if (isMounted) {
+              window.toast?.('Session expired. Please log in again.', 'error');
+              performLogout();
+              navigate('/login', { replace: true });
+            }
           }
         }
         return Promise.reject(error);
@@ -142,9 +194,15 @@ export function AuthProvider({ children }) {
     });
   };
 
-  const logout = () => {
-    performLogout();
-    navigate('/login', { replace: true });
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (err) {
+      console.error('Logout API failed', err);
+    } finally {
+      performLogout();
+      navigate('/login', { replace: true });
+    }
   };
 
   return (

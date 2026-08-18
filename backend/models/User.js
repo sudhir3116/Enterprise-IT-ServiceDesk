@@ -20,7 +20,23 @@ const userSchema = new mongoose.Schema(
 
     password: {
       type: String,
-      required: true,
+      // Optional: OAuth users (Google/Microsoft) do not have a local password
+    },
+
+    authProvider: {
+      type: String,
+      enum: ["local", "google", "microsoft"],
+      default: "local",
+    },
+
+    googleId: {
+      type: String,
+      sparse: true,
+    },
+
+    microsoftId: {
+      type: String,
+      sparse: true,
     },
 
     role: {
@@ -36,7 +52,15 @@ const userSchema = new mongoose.Schema(
 
     isEmailVerified: {
       type: Boolean,
-      default: true,
+      default: false,
+    },
+
+    emailVerificationToken: {
+      type: String,
+    },
+
+    emailVerificationExpires: {
+      type: Date,
     },
 
     department: {
@@ -73,6 +97,22 @@ const userSchema = new mongoose.Schema(
     resetPasswordExpires: {
       type: Date,
     },
+
+    refreshTokens: [
+      {
+        token: {
+          type: String,
+          required: true,
+        },
+        deviceInfo: {
+          type: String,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
