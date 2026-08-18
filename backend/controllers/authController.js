@@ -319,6 +319,51 @@ const updateUserProfile = async (req, res, next) => {
   }
 };
 
+// Update User Password (Self)
+const updatePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      res.status(404);
+      throw new Error("User Not Found");
+    }
+
+    if (user.authProvider !== "local") {
+      res.status(400);
+      throw new Error("Social login accounts cannot change password.");
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      res.status(400);
+      throw new Error("Incorrect current password.");
+    }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      res.status(400);
+      throw new Error("Password must be at least 8 characters long, contain an uppercase letter, lowercase letter, number, and a special character.");
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    await logAudit({
+      entity: "User",
+      entityId: user._id,
+      action: "Password Changed",
+      performedBy: req.user._id,
+      ipAddress: req.ip || req.connection?.remoteAddress || ""
+    });
+
+    res.status(200).json({ message: "Password updated successfully." });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Delete User Account (Self)
 const deleteAccount = async (req, res, next) => {
   try {
@@ -412,7 +457,8 @@ const forgotPassword = async (req, res, next) => {
 
 const resetPassword = async (req, res, next) => {
   try {
-    await authService.resetPassword(req.body.token, req.body.password);
+    const ipAddress = req.ip || req.connection?.remoteAddress || "";
+    await authService.resetPassword(req.body.token, req.body.password, ipAddress);
     res.status(200).json({
       message: "Your password has been successfully updated. You may now sign in.",
     });
@@ -560,4 +606,5 @@ module.exports = {
   revokeAllSessions,
   verifyEmail,
   resendVerificationEmail,
+  updatePassword,
 };

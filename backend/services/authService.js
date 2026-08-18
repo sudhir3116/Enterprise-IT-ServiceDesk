@@ -142,21 +142,80 @@ class AuthService {
 
   async loginUser(email, password, userAgent, ipAddress = "", rememberMe = false) {
     const user = await User.findOne({ email });
-    if (!user) throw new Error("Invalid email or password.");
-    if (!user.isEmailVerified) throw new Error("Email not verified");
-    if (user.accountStatus === "inactive") throw new Error("Account deactivated. Contact support.");
+    if (!user) {
+      // Audit log failed attempt for non-existent user
+      await logAudit({
+        entity: "User",
+        entityId: null,
+        action: "Login Failed",
+        performedBy: null,
+        after: { email, reason: "User not found" },
+        ipAddress
+      }).catch(()=>{});
+      throw new Error("Invalid email or password.");
+    }
+
+    if (user.accountStatus === "inactive") {
+      throw new Error("Account deactivated. Contact support.");
+    }
+
+    // Check if account is locked
+    if (user.lockUntil && user.lockUntil > Date.now()) {
+      const remainingTime = Math.ceil((user.lockUntil - Date.now()) / 60000);
+      throw new Error(`Account temporarily locked due to failed attempts. Try again in ${remainingTime} minutes.`);
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) throw new Error("Invalid email or password.");
+    if (!isMatch) {
+      // Password mismatch
+      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
 
+      // Lock account if failed attempts exceed 5
+      if (user.failedLoginAttempts >= 5) {
+        user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes lockout
+        await user.save();
+
+        await logAudit({
+          entity: "User",
+          entityId: user._id,
+          action: "Account Locked",
+          performedBy: user._id,
+          after: { email: user.email, reason: "5 consecutive failed login attempts" },
+          ipAddress
+        }).catch(()=>{});
+
+        throw new Error("Account locked due to consecutive failed attempts. Try again in 15 minutes.");
+      }
+
+      await user.save();
+
+      await logAudit({
+        entity: "User",
+        entityId: user._id,
+        action: "Login Failed",
+        performedBy: user._id,
+        after: { email: user.email, reason: "Incorrect password" },
+        ipAddress
+      }).catch(()=>{});
+
+      throw new Error(`Invalid email or password. Attempt ${user.failedLoginAttempts} of 5 before lockout.`);
+    }
+
+    // Success login: reset lockout counters
+    user.failedLoginAttempts = 0;
+    user.lockUntil = undefined;
     user.lastLogin = new Date();
     await user.save();
 
     const timeout = await this.getSessionTimeout();
 
     await logAudit({
-      entity: "User", entityId: user._id, action: "Login", performedBy: user._id,
-      after: { email: user.email, role: user.role }
+      entity: "User",
+      entityId: user._id,
+      action: "Login",
+      performedBy: user._id,
+      after: { email: user.email, role: user.role },
+      ipAddress
     }).catch(()=>{});
 
     const accessToken = this.generateAccessToken(user._id, timeout);
@@ -289,14 +348,24 @@ class AuthService {
     await sendEmail(user.email, "Reset Your Password", emailHtml).catch(console.error);
   }
 
-  async resetPassword(token, newPassword) {
+  async resetPassword(token, newPassword, ipAddress = "") {
     const user = await User.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });
     if (!user) throw new Error("Token invalid or expired");
 
     user.password = await bcrypt.hash(newPassword, 10);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
+    user.failedLoginAttempts = 0;
+    user.lockUntil = undefined;
     await user.save();
+
+    await logAudit({
+      entity: "User",
+      entityId: user._id,
+      action: "Password Reset via Token",
+      performedBy: user._id,
+      ipAddress
+    }).catch(()=>{});
   }
 }
 

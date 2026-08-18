@@ -60,6 +60,7 @@ if (isConfigured(process.env.GOOGLE_CLIENT_ID) && isConfigured(process.env.GOOGL
               department: "General",
               designation: "Staff",
               employeeId: "EMP-" + Math.floor(100000 + Math.random() * 90000),
+              mobileNumber: "Not Provided",
             });
           }
 
@@ -125,6 +126,7 @@ if (isConfigured(process.env.MICROSOFT_CLIENT_ID) && isConfigured(process.env.MI
               department: "General",
               designation: "Staff",
               employeeId: "EMP-" + Math.floor(100000 + Math.random() * 90000),
+              mobileNumber: "Not Provided",
             });
           }
 

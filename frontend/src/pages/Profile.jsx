@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import api from '../services/api'
-import { User, Settings, Save, Lock, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { User, Settings, Save, Lock, AlertCircle, CheckCircle2, Smartphone, Laptop, ShieldAlert, Trash2 } from 'lucide-react'
 import Button from '../components/enterprise/Button'
 import Badge from '../components/enterprise/Badge'
 import { useAuth } from '../context/AuthContext'
@@ -14,6 +14,47 @@ export default function Profile() {
   const [message, setMessage] = useState(null)
 
   const [stats, setStats] = useState({ assigned: 0, resolved: 0, avgResolutionTime: 'N/A' })
+
+  // Session Management States
+  const [sessions, setSessions] = useState([])
+  const [sessionsLoading, setSessionsLoading] = useState(false)
+
+  const fetchSessions = async () => {
+    try {
+      setSessionsLoading(true)
+      const res = await api.get('/auth/sessions')
+      setSessions(res.data.sessions || [])
+    } catch (err) {
+      console.error("Failed to load active sessions", err)
+    } finally {
+      setSessionsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchSessions()
+  }, [])
+
+  const handleRevokeSession = async (sessionId) => {
+    try {
+      await api.delete(`/auth/sessions/${sessionId}`)
+      setMessage({ type: 'success', text: 'Session revoked successfully.' })
+      fetchSessions()
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to revoke session.' })
+    }
+  }
+
+  const handleRevokeAllSessions = async () => {
+    if (!window.confirm("Are you sure you want to log out of all other devices?")) return
+    try {
+      await api.delete('/auth/sessions')
+      setMessage({ type: 'success', text: 'All other sessions revoked successfully.' })
+      fetchSessions()
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to revoke sessions.' })
+    }
+  }
 
   useEffect(() => {
     if (user?.role === 'support_engineer') {
@@ -289,6 +330,89 @@ export default function Profile() {
               </Button>
             </div>
           </form>
+
+          {/* Active Sessions Management */}
+          <div style={cardStyle}>
+            <div style={cardHeaderStyle} className="flex justify-between items-center w-full">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4" style={{ color: 'var(--ds-text-muted)' }} />
+                <h3 className="text-[13px] font-bold" style={{ color: 'var(--ds-text-primary)' }}>Active Security Sessions</h3>
+              </div>
+              {sessions.length > 1 && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRevokeAllSessions}
+                  style={{ borderColor: 'var(--ds-danger)', color: 'var(--ds-danger)', padding: '4px 10px', fontSize: '11px' }}
+                >
+                  Terminate Other Sessions
+                </Button>
+              )}
+            </div>
+            
+            <div className="p-5">
+              {sessionsLoading ? (
+                <p className="text-xs text-center" style={{ color: 'var(--ds-text-muted)' }}>Loading sessions…</p>
+              ) : sessions.length === 0 ? (
+                <p className="text-xs text-center" style={{ color: 'var(--ds-text-muted)' }}>No active sessions found.</p>
+              ) : (
+                <div className="space-y-3">
+                  {sessions.map(sess => {
+                    const isMobile = /mobile|android|iphone/i.test(sess.deviceInfo || '');
+                    return (
+                      <div 
+                        key={sess._id} 
+                        className="flex items-center justify-between p-3.5 rounded-lg border transition-all"
+                        style={{ 
+                          borderColor: 'var(--ds-border)',
+                          backgroundColor: sess.isCurrentSession ? 'var(--ds-surface-raised)' : 'transparent'
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 p-2 rounded-lg bg-ds-surface-raised border border-ds-border">
+                            {isMobile ? (
+                              <Smartphone className="w-4 h-4" style={{ color: 'var(--ds-text-muted)' }} />
+                            ) : (
+                              <Laptop className="w-4 h-4" style={{ color: 'var(--ds-text-muted)' }} />
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[13px] font-bold" style={{ color: 'var(--ds-text-primary)' }}>
+                                {sess.deviceInfo || 'Unknown Device'}
+                              </span>
+                              {sess.isCurrentSession && (
+                                <span 
+                                  className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider"
+                                  style={{ backgroundColor: 'var(--ds-success-subtle)', color: 'var(--ds-success)' }}
+                                >
+                                  Current Device
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px]" style={{ color: 'var(--ds-text-muted)' }}>
+                              IP Address: <span className="font-mono">{sess.ipAddress}</span> &bull; Logged in {new Date(sess.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        {!sess.isCurrentSession && (
+                          <Button 
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRevokeSession(sess._id)}
+                            icon={Trash2}
+                            style={{ fontSize: '11px', padding: '4px 8px', color: 'var(--ds-danger)' }}
+                          >
+                            Revoke
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Right Sidebar Preferences */}

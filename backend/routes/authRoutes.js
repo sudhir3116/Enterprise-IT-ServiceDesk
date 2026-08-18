@@ -1,4 +1,5 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 
 const router = express.Router();
 
@@ -21,6 +22,7 @@ const {
   revokeAllSessions,
   verifyEmail,
   resendVerificationEmail,
+  updatePassword,
 } = require("../controllers/authController");
 
 const { protect, requireRole } = require("../middleware/authMiddleware");
@@ -32,12 +34,23 @@ const {
   resendVerificationValidator,
 } = require("../validators/authValidator");
 
-router.post("/register", registerValidator, registerUser);
-router.post("/login", loginValidator, loginUser);
+// Strict rate limiter for authentication endpoints to prevent brute-force attacks
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 15, // limit each IP to 15 attempts per windowMs
+  message: {
+    message: "Too many authentication requests from this IP. Please try again after 15 minutes."
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.post("/register", authLimiter, registerValidator, registerUser);
+router.post("/login", authLimiter, loginValidator, loginUser);
 router.post("/logout", logoutUser);
 router.post("/refresh", refreshToken);
-router.post("/forgot-password", forgotPasswordValidator, forgotPassword);
-router.post("/reset-password", resetPasswordValidator, resetPassword);
+router.post("/forgot-password", authLimiter, forgotPasswordValidator, forgotPassword);
+router.post("/reset-password", authLimiter, resetPasswordValidator, resetPassword);
 
 // Email Verification
 router.get("/verify-email/:token", verifyEmail);
@@ -50,6 +63,7 @@ router.post("/users", protect, requireRole("admin"), createUserByAdmin);
 router.put("/users/:id/role", protect, requireRole("admin"), updateUserRole);
 router.delete("/users/:id", protect, requireRole("admin"), deleteUserByAdmin);
 router.put("/profile", protect, updateUserProfile);
+router.put("/users/:id/password", protect, updatePassword);
 router.delete("/delete-account", protect, deleteAccount);
 
 // Session Management
