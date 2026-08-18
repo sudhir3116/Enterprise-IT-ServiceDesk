@@ -55,8 +55,9 @@ export default function Login() {
     setLoading(true)
     try {
       const data = await loginApi({ email, password })
-      login(data.user, data.token)
-      const role = data.user?.email === 'sudhir3116@gmail.com' ? 'admin' : (data.user?.role || 'employee')
+      login(data.user, data.accessToken)
+      // Role comes exclusively from the API (RBAC system) — never from client-side identity checks
+      const role = data.user?.role || 'employee'
       navigate(getDashboardPath(role), { replace: true })
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Login failed. Please try again.')

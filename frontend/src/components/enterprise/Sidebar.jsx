@@ -12,7 +12,8 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
   const location = useLocation()
   
   const userInitials = user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'
-  const role = user && user.email === 'sudhir3116@gmail.com' ? 'admin' : (user?.role || 'employee')
+  // Role comes exclusively from the RBAC system — never from client-side identity checks
+  const role = user?.role || 'employee'
 
   const getSettingsPath = () => {
     if (role === 'admin') return '/admin/settings'

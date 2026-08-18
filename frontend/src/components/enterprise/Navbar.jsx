@@ -50,7 +50,8 @@ export default function Navbar({ setMobileMenuOpen, setSearchOpen }) {
     return () => window.removeEventListener('click', handleOutsideClick)
   }, [])
 
-  const role = user && user.email === 'sudhir3116@gmail.com' ? 'admin' : (user?.role || 'employee')
+  // Role comes exclusively from the RBAC system — never from client-side identity checks
+  const role = user?.role || 'employee'
   const getSettingsPath = () => {
     if (role === 'admin') return '/admin/settings'
     if (role === 'support_engineer') return '/engineer/profile'

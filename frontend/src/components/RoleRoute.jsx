@@ -37,9 +37,8 @@ export default function RoleRoute({ children, role }) {
 
   if (!user) return <Navigate to="/login" replace />
 
-  const userRole = user && user.email === 'sudhir3116@gmail.com'
-    ? 'admin'
-    : (user.role || '').toString().toLowerCase()
+  // Role comes exclusively from the RBAC system — never from client-side identity checks
+  const userRole = (user?.role || '').toString().toLowerCase()
 
   const allowedRoles = Array.isArray(role)
     ? role.map(r => r.toLowerCase())
