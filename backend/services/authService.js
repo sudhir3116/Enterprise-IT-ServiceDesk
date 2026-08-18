@@ -242,8 +242,22 @@ class AuthService {
     await user.save();
 
     const resetUrl = `${origin || "http://localhost:5173"}/reset-password?token=${resetToken}`;
-    const emailHtml = `<a href="${resetUrl}">Reset Password</a>`;
-    await sendEmail(user.email, "Reset Password", emailHtml).catch(console.error);
+    const emailHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03);">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+          <div style="height: 36px; width: 36px; display: flex; align-items: center; justify-content: center; background: #2563eb; border-radius: 10px; color: #ffffff; font-weight: bold; font-size: 16px;">⚡</div>
+          <span style="font-weight: 750; font-size: 14px; color: #0f172a; letter-spacing: 0.5px; text-transform: uppercase;">Product Support Portal</span>
+        </div>
+        <h2 style="font-size: 20px; font-weight: 700; color: #0f172a; margin-top: 0; margin-bottom: 12px;">Reset Your Password</h2>
+        <p style="font-size: 14px; color: #475569; line-height: 1.5; margin-bottom: 24px;">Hello ${user.name},</p>
+        <p style="font-size: 14px; color: #475569; line-height: 1.5; margin-bottom: 24px;">We received a request to reset the password for your Product Support Portal account. Click the button below to set a new password. This link is valid for 1 hour.</p>
+        <div style="margin-bottom: 28px;">
+          <a href="${resetUrl}" style="display: inline-block; background: #2563eb; color: #ffffff !important; font-weight: 600; font-size: 14px; padding: 12px 24px; border-radius: 8px; text-decoration: none; box-shadow: 0 2px 4px rgba(37,99,235,0.2);">Reset Password</a>
+        </div>
+        <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-bottom: 0;">If you did not make this request, you can safely ignore this email. Your password will remain unchanged.</p>
+      </div>
+    `;
+    await sendEmail(user.email, "Reset Your Password", emailHtml).catch(console.error);
   }
 
   async resetPassword(token, newPassword) {

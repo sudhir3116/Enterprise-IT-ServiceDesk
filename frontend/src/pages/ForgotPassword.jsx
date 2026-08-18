@@ -53,7 +53,7 @@ export default function ForgotPassword() {
               <span className="font-heading font-extrabold text-lg">⚡</span>
             </div>
             <div>
-              <span className="block font-heading font-bold text-sm text-zinc-100 uppercase tracking-wider">Employee IT Helpdesk System</span>
+              <span className="block font-heading font-bold text-sm text-zinc-100 uppercase tracking-wider">Product Support Portal</span>
               <span className="block text-[10px] text-zinc-450 uppercase">Enterprise Support Desk</span>
             </div>
           </div>
@@ -62,7 +62,7 @@ export default function ForgotPassword() {
             Secure workspace account recovery.
           </h2>
           <p className="text-sm text-zinc-400 leading-relaxed mb-10 max-w-xl">
-            Enter your email to obtain a security token and regain access to the IT service desk console.
+            Enter your email to obtain a security token and regain access to the Product Support Portal workspace console.
           </p>
 
           <div className="relative z-10 flex items-center justify-between text-xs font-semibold text-zinc-500 border-t border-zinc-800 pt-6 uppercase tracking-wider">
@@ -86,7 +86,7 @@ export default function ForgotPassword() {
                 <span className="font-heading font-extrabold text-lg">⚡</span>
               </div>
               <div>
-                <span className="block font-heading font-bold text-sm text-slate-900 uppercase tracking-wider">ITSM ServiceDesk</span>
+                <span className="block font-heading font-bold text-sm text-slate-900 uppercase tracking-wider">Product Support Portal</span>
               </div>
             </div>
 
@@ -159,7 +159,7 @@ export default function ForgotPassword() {
         {/* Footer */}
         <div className="w-full py-8 text-center shrink-0">
           <p className="text-xs text-slate-400 leading-relaxed">
-            &copy; 2026 ITSM ServiceDesk. All rights reserved. <br />
+            &copy; 2026 Product Support Portal. All rights reserved. <br />
             <span className="font-mono text-[11px] text-slate-400 mt-1 block">Version 2.4.0 &bull; System Active</span>
           </p>
         </div>
