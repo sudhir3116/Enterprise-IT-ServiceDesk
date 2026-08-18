@@ -39,6 +39,10 @@ const sessionSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    rememberMe: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

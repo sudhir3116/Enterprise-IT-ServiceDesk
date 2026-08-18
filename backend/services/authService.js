@@ -140,7 +140,7 @@ class AuthService {
     await sendEmail(user.email, "Welcome to Employee IT Helpdesk System", emailHtml);
   }
 
-  async loginUser(email, password, userAgent, ipAddress = "") {
+  async loginUser(email, password, userAgent, ipAddress = "", rememberMe = false) {
     const user = await User.findOne({ email });
     if (!user) throw new Error("Invalid email or password.");
     if (!user.isEmailVerified) throw new Error("Email not verified");
@@ -160,7 +160,8 @@ class AuthService {
     }).catch(()=>{});
 
     const accessToken = this.generateAccessToken(user._id, timeout);
-    const refreshToken = this.generateRefreshToken(user._id, 7);
+    const durationDays = rememberMe ? 30 : 1;
+    const refreshToken = this.generateRefreshToken(user._id, durationDays);
 
     const deviceInfo = this.getDeviceInfo(userAgent);
     const tokenHash = this.hashToken(refreshToken);
@@ -171,10 +172,11 @@ class AuthService {
       deviceInformation: deviceInfo,
       ipAddress,
       userAgent,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      expiresAt: new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000),
+      rememberMe,
     });
 
-    return { user, accessToken, refreshToken };
+    return { user, accessToken, refreshToken, rememberMe };
   }
 
   async refreshToken(rToken, userAgent, ipAddress = "") {
@@ -192,12 +194,15 @@ class AuthService {
       throw new Error("Invalid refresh token. All sessions revoked for security.");
     }
 
+    const rememberMe = session.rememberMe || false;
+
     // Rotate token: Delete the used session
     await Session.deleteOne({ _id: session._id });
 
     const timeout = await this.getSessionTimeout();
     const newAccessToken = this.generateAccessToken(user._id, timeout);
-    const newRefreshToken = this.generateRefreshToken(user._id, 7);
+    const durationDays = rememberMe ? 30 : 1;
+    const newRefreshToken = this.generateRefreshToken(user._id, durationDays);
 
     const deviceInfo = this.getDeviceInfo(userAgent);
     const newHash = this.hashToken(newRefreshToken);
@@ -208,10 +213,11 @@ class AuthService {
       deviceInformation: deviceInfo,
       ipAddress,
       userAgent,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000),
+      rememberMe,
     });
 
-    return { newAccessToken, newRefreshToken };
+    return { newAccessToken, newRefreshToken, rememberMe };
   }
 
   async logoutUser(rToken) {

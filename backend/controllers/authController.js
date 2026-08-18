@@ -41,14 +41,23 @@ const registerUser = async (req, res, next) => {
 
 const loginUser = async (req, res, next) => {
   try {
+    const { email, password, rememberMe } = req.body;
     const ipAddress = req.ip || req.connection?.remoteAddress || "";
-    const { user, accessToken, refreshToken } = await authService.loginUser(email, password, req.headers["user-agent"], ipAddress);
+    const { user, accessToken, refreshToken, rememberMe: isRemembered } = await authService.loginUser(
+      email,
+      password,
+      req.headers["user-agent"],
+      ipAddress,
+      rememberMe
+    );
+
+    const maxAge = isRemembered ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge,
     });
 
     res.status(200).json({
@@ -466,17 +475,19 @@ const getProfile = async (req, res, next) => {
 const refreshToken = async (req, res, next) => {
   try {
     const ipAddress = req.ip || req.connection?.remoteAddress || "";
-    const { newAccessToken, newRefreshToken } = await authService.refreshToken(
+    const { newAccessToken, newRefreshToken, rememberMe } = await authService.refreshToken(
       req.cookies.refreshToken,
       req.headers["user-agent"],
       ipAddress
     );
 
+    const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+
     res.cookie("refreshToken", newRefreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge,
     });
 
     res.status(200).json({ accessToken: newAccessToken });

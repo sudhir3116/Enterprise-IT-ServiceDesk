@@ -31,6 +31,7 @@ export default function Login() {
   const [showResend, setShowResend]   = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
   const [resendSuccessMessage, setResendSuccessMessage] = useState('')
+  const [rememberMe, setRememberMe]   = useState(false)
 
   const navigate = useNavigate()
   const { login } = useAuth()
@@ -73,7 +74,7 @@ export default function Login() {
 
     setLoading(true)
     try {
-      const data = await loginApi({ email, password })
+      const data = await loginApi({ email, password, rememberMe })
       login(data.user, data.accessToken)
       // Role comes exclusively from the API (RBAC system) — never from client-side identity checks
       const role = data.user?.role || 'employee'
@@ -318,7 +319,16 @@ export default function Login() {
             </div>
 
             {/* Forgot password (inline text link) */}
-            <div className="lp-forgot-row">
+            <div className="lp-forgot-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: '-6px', marginBottom: '14px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: 'var(--ds-text-muted)', cursor: 'pointer', fontWeight: 500 }}>
+                <input 
+                  type="checkbox" 
+                  checked={rememberMe} 
+                  onChange={e => setRememberMe(e.target.checked)} 
+                  style={{ width: '14px', height: '14px', accentColor: 'var(--ds-primary, #2563eb)', cursor: 'pointer' }}
+                />
+                Remember me
+              </label>
               <Link to="/forgot-password" className="lp-link">Forgot Password?</Link>
             </div>
 
@@ -347,7 +357,7 @@ export default function Login() {
         <footer className="lp-footer">
           <span>Version 2.4.0</span>
           <span className="lp-footer-sep">·</span>
-          <span>&copy; 2026 Employee IT Helpdesk</span>
+          <span>&copy; 2026 Product Support Portal</span>
         </footer>
       </div>
 
