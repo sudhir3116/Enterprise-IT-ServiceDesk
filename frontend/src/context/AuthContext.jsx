@@ -115,40 +115,49 @@ export function AuthProvider({ children }) {
 
     // 2. Initial verification — validates token against backend on every page load / refresh
     const initAuth = async () => {
-      const token = getToken();
-      if (!token) {
-        if (isMounted) {
-          performLogout();
-          setLoading(false);
-        }
-        return;
-      }
+      console.log("[AuthInit] Checking session status...");
+      let token = getToken();
+      console.log("[AuthInit] Token in localStorage:", token ? "Exists" : "Missing");
 
-      // Fast-path: check exp claim before making a network call
-      const expMs = getTokenExpMs(token);
-      if (expMs && expMs <= Date.now()) {
-        if (isMounted) {
-          performLogout();
-          navigate('/login', { replace: true });
-          setLoading(false);
+      // If token is missing or expired, attempt to restore session via refresh token cookie
+      const isExpired = !token || (getTokenExpMs(token) && getTokenExpMs(token) <= Date.now());
+      if (isExpired) {
+        console.log("[AuthInit] Token is missing or expired. Attempting token refresh...");
+        try {
+          const res = await api.post('/auth/refresh', {}, { withCredentials: true });
+          token = res.data.accessToken;
+          console.log("[AuthInit] Session successfully restored. Token refreshed:", token ? "Yes" : "No");
+          saveToken(token);
+          api.defaults.headers.common['Authorization'] = 'Bearer ' + token;
+        } catch (refreshErr) {
+          console.log("[AuthInit] Session restoration failed (no valid refresh cookie):", refreshErr.message);
+          if (isMounted) {
+            console.log("[AuthInit] Redirecting to login: Session expired/invalid");
+            performLogout();
+            setLoading(false);
+          }
+          return;
         }
-        return;
       }
       
       try {
+        console.log("[AuthInit] Fetching user profile...");
         const res = await api.get('/auth/profile');
         if (res.data && res.data.user) {
           if (isMounted) {
             const userData = res.data.user;
+            console.log("[AuthInit] User authenticated successfully:", userData.email);
             saveUser(userData);
             setUser(userData);
           }
         } else {
+          console.log("[AuthInit] Profile empty, logging out.");
           if (isMounted) performLogout();
         }
       } catch (error) {
-        // Clear auth state if token validation fails for ANY reason on startup
+        console.log("[AuthInit] Profile fetch failed:", error.response?.data?.message || error.message);
         if (isMounted) {
+          console.log("[AuthInit] Redirecting to login due to validation failure");
           performLogout();
           navigate('/login', { replace: true });
         }

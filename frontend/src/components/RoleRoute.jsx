@@ -1,27 +1,14 @@
 import React from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { getToken } from '../services/auth'
-
-/** Check if the locally-stored JWT is expired (using the exp claim baked in by the backend). */
-function isTokenExpired() {
-  const token = getToken()
-  if (!token) return true
-  try {
-    const base64Url = token.split('.')[1]
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-    const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=')
-    const { exp } = JSON.parse(atob(padded))
-    return exp ? exp * 1000 <= Date.now() : false
-  } catch {
-    return true
-  }
-}
 
 export default function RoleRoute({ children, role }) {
-  const { user, loading, logout } = useAuth()
+  const { user, loading } = useAuth()
+
+  console.log(`[RoleRoute] Checking role requirements. Target roles: ${role}, User Role: ${user ? user.role : "Guest"}, Loading: ${loading}`)
 
   if (loading) {
+    console.log("[RoleRoute] App is loading auth state, rendering workspace loader...")
     return (
       <div className="flex justify-center items-center h-screen w-full" style={{ backgroundColor: 'var(--ds-bg)' }}>
         <div className="flex flex-col items-center gap-3">
@@ -32,13 +19,10 @@ export default function RoleRoute({ children, role }) {
     )
   }
 
-  // Check token expiry on every route navigation
-  if (user && isTokenExpired()) {
-    logout()
+  if (!user) {
+    console.log("[RoleRoute] Access blocked: Guest user redirected to login.");
     return <Navigate to="/login" replace />
   }
-
-  if (!user) return <Navigate to="/login" replace />
 
   // Role comes exclusively from the RBAC system — never from client-side identity checks
   const userRole = (user?.role || '').toString().toLowerCase()
@@ -50,8 +34,10 @@ export default function RoleRoute({ children, role }) {
   const isAuthorized = allowedRoles.includes(userRole)
 
   if (!isAuthorized) {
+    console.log(`[RoleRoute] Access denied: User role "${userRole}" not allowed for route. Redirecting to unauthorized.`);
     return <Navigate to="/unauthorized" replace />
   }
 
+  console.log("[RoleRoute] Access granted. Mounting children components.");
   return children
 }
