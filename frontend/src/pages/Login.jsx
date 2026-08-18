@@ -369,7 +369,7 @@ export default function Login() {
           <div className="lp-divider"><span>New to the platform?</span></div>
 
           {/* Register */}
-          <Link to="/register" className="lp-btn-secondary">Register Account</Link>
+          <Link to="/register" className="lp-btn-secondary">Create Account</Link>
 
         </div>
 

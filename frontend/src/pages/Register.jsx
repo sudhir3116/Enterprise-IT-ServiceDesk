@@ -97,7 +97,7 @@ export default function Register() {
             </div>
             <div>
               <span className="block font-heading font-bold text-sm text-zinc-100 uppercase tracking-wider">Product Support Portal</span>
-              <span className="block text-[10px] text-zinc-450 uppercase">Enterprise Support Desk</span>
+              <span className="block text-[10px] text-zinc-400 uppercase">Product Support Portal</span>
             </div>
           </div>
 
@@ -109,7 +109,7 @@ export default function Register() {
           </p>
 
           <div className="relative z-10 flex items-center justify-between text-xs font-semibold text-zinc-500 border-t border-zinc-800 pt-6 uppercase tracking-wider">
-            <span>Enterprise Support Portal</span>
+            <span>Product Support Portal</span>
             <span>Version 2.4.0</span>
           </div>
         </div>

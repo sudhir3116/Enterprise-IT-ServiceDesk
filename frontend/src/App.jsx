@@ -18,6 +18,7 @@ import ResetPassword from './pages/ResetPassword'
 import VerifyEmail from './pages/VerifyEmail'
 import NotFound from './pages/NotFound'
 import Unauthorized from './pages/Unauthorized'
+import OAuthCallback from './pages/OAuthCallback'
 
 const EmployeeDashboard = lazy(() => import('./pages/EmployeeDashboard'))
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
@@ -106,6 +107,7 @@ function AppRouter() {
           <Route path="/forgot-password"element={user ? <Navigate to={getDashboardPath(role)} replace /> : <ForgotPassword />} />
           <Route path="/reset-password" element={user ? <Navigate to={getDashboardPath(role)} replace /> : <ResetPassword />} />
           <Route path="/verify-email"   element={<VerifyEmail />} />
+          <Route path="/oauth-callback" element={<OAuthCallback />} />
         </Route>
 
         {/* ── Error pages (no sidebar) ───────────────────────── */}
