@@ -157,9 +157,13 @@ export function AuthProvider({ children }) {
       } catch (error) {
         console.log("[AuthInit] Profile fetch failed:", error.response?.data?.message || error.message);
         if (isMounted) {
-          console.log("[AuthInit] Redirecting to login due to validation failure");
           performLogout();
-          navigate('/login', { replace: true });
+          // Only navigate to login if we're on a protected page (avoid double-redirect on public auth pages)
+          const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/oauth-callback'];
+          if (!publicPaths.some(p => window.location.pathname.startsWith(p))) {
+            console.log("[AuthInit] Redirecting to login due to validation failure");
+            navigate('/login', { replace: true });
+          }
         }
       } finally {
         if (isMounted) {
@@ -193,9 +197,11 @@ export function AuthProvider({ children }) {
   }, [navigate, performLogout]); // stable dependencies
 
   const login = (userData, token) => {
+    console.log('[AuthContext] login() called. Storing token and user:', userData?.email);
     saveToken(token);
     saveUser(userData);
     setUser(userData);
+    console.log('[AuthContext] Auth state updated. Token stored:', !!token, '| User role:', userData?.role);
   };
 
   const updateUser = (updatedFields) => {

@@ -74,13 +74,18 @@ export default function Login() {
 
     setLoading(true)
     try {
+      console.log('[Login] Submitting credentials for:', email)
       const data = await loginApi({ email, password, rememberMe })
+      console.log('[Login] API response received. accessToken exists:', !!data.accessToken, '| user:', data.user?.email, '| role:', data.user?.role)
       login(data.user, data.accessToken)
       // Role comes exclusively from the API (RBAC system) — never from client-side identity checks
       const role = data.user?.role || 'employee'
-      navigate(getDashboardPath(role), { replace: true })
+      const dashPath = getDashboardPath(role)
+      console.log('[Login] Navigating to dashboard:', dashPath)
+      navigate(dashPath, { replace: true })
     } catch (err) {
       const errMsg = err.response?.data?.message || err.message || 'Login failed. Please try again.'
+      console.error('[Login] Login failed:', errMsg)
       setError(errMsg)
       if (errMsg.toLowerCase().includes('email not verified') || errMsg.toLowerCase().includes('verified')) {
         setShowResend(true)
