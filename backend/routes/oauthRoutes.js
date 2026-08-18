@@ -14,6 +14,13 @@ const router = express.Router();
 const passport = require("passport");
 const authService = require("../services/authService");
 const { logAudit } = require("../utils/auditLogger");
+const Session = require("../models/Session");
+const crypto = require("crypto");
+
+const hashToken = (token) => {
+  if (!token) return "";
+  return crypto.createHash("sha256").update(token).digest("hex");
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPER: Check if a passport strategy is registered
@@ -30,7 +37,18 @@ const handleOAuthSuccess = async (req, res, user) => {
     const refreshToken = authService.generateRefreshToken(user._id, 7);
 
     const deviceInfo = authService.getDeviceInfo(req.headers["user-agent"]);
-    user.refreshTokens.push({ token: refreshToken, deviceInfo });
+    const tokenHash = hashToken(refreshToken);
+    const ipAddress = req.ip || req.connection?.remoteAddress || "";
+
+    await Session.create({
+      userId: user._id,
+      tokenHash,
+      deviceInformation: deviceInfo,
+      ipAddress,
+      userAgent: req.headers["user-agent"],
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    });
+
     user.lastLogin = new Date();
     await user.save();
 

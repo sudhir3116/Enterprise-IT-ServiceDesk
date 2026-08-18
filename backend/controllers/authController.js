@@ -41,8 +41,8 @@ const registerUser = async (req, res, next) => {
 
 const loginUser = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    const { user, accessToken, refreshToken } = await authService.loginUser(email, password, req.headers["user-agent"]);
+    const ipAddress = req.ip || req.connection?.remoteAddress || "";
+    const { user, accessToken, refreshToken } = await authService.loginUser(email, password, req.headers["user-agent"], ipAddress);
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
@@ -465,9 +465,11 @@ const getProfile = async (req, res, next) => {
 
 const refreshToken = async (req, res, next) => {
   try {
+    const ipAddress = req.ip || req.connection?.remoteAddress || "";
     const { newAccessToken, newRefreshToken } = await authService.refreshToken(
       req.cookies.refreshToken,
-      req.headers["user-agent"]
+      req.headers["user-agent"],
+      ipAddress
     );
 
     res.cookie("refreshToken", newRefreshToken, {

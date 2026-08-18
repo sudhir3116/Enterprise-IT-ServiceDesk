@@ -8,8 +8,14 @@ const { logAudit } = require("../utils/auditLogger");
 const UAParser = require("ua-parser-js");
 const crypto = require("crypto");
 const { normalizeRole } = require("../middleware/authMiddleware");
+const Session = require("../models/Session");
 
 class AuthService {
+  hashToken(token) {
+    if (!token) return "";
+    return crypto.createHash("sha256").update(token).digest("hex");
+  }
+
   // Helpers
   getDeviceInfo(userAgent) {
     if (!userAgent) return "Unknown Device";
@@ -134,7 +140,7 @@ class AuthService {
     await sendEmail(user.email, "Welcome to Employee IT Helpdesk System", emailHtml);
   }
 
-  async loginUser(email, password, userAgent) {
+  async loginUser(email, password, userAgent, ipAddress = "") {
     const user = await User.findOne({ email });
     if (!user) throw new Error("Invalid email or password.");
     if (!user.isEmailVerified) throw new Error("Email not verified");
@@ -157,79 +163,96 @@ class AuthService {
     const refreshToken = this.generateRefreshToken(user._id, 7);
 
     const deviceInfo = this.getDeviceInfo(userAgent);
-    user.refreshTokens.push({ token: refreshToken, deviceInfo });
-    await user.save();
+    const tokenHash = this.hashToken(refreshToken);
+
+    await Session.create({
+      userId: user._id,
+      tokenHash,
+      deviceInformation: deviceInfo,
+      ipAddress,
+      userAgent,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    });
 
     return { user, accessToken, refreshToken };
   }
 
-  async refreshToken(rToken, userAgent) {
+  async refreshToken(rToken, userAgent, ipAddress = "") {
     if (!rToken) throw new Error("No refresh token provided.");
     const decoded = jwt.verify(rToken, process.env.JWT_REFRESH_SECRET || "myrefreshsecretkey");
     const user = await User.findById(decoded.id);
     if (!user) throw new Error("User not found.");
 
-    const tokenExists = user.refreshTokens.find((rt) => rt.token === rToken);
-    if (!tokenExists) {
-      user.refreshTokens = [];
-      await user.save();
+    const tokenHash = this.hashToken(rToken);
+    const session = await Session.findOne({ tokenHash, userId: user._id });
+
+    if (!session || session.revokedAt) {
+      // Token Reuse Detection: Force logout on all devices if reuse detected
+      await Session.deleteMany({ userId: user._id });
       throw new Error("Invalid refresh token. All sessions revoked for security.");
     }
 
-    user.refreshTokens = user.refreshTokens.filter((rt) => rt.token !== rToken);
+    // Rotate token: Delete the used session
+    await Session.deleteOne({ _id: session._id });
+
     const timeout = await this.getSessionTimeout();
     const newAccessToken = this.generateAccessToken(user._id, timeout);
     const newRefreshToken = this.generateRefreshToken(user._id, 7);
 
     const deviceInfo = this.getDeviceInfo(userAgent);
-    user.refreshTokens.push({ token: newRefreshToken, deviceInfo });
-    await user.save();
+    const newHash = this.hashToken(newRefreshToken);
+
+    await Session.create({
+      userId: user._id,
+      tokenHash: newHash,
+      deviceInformation: deviceInfo,
+      ipAddress,
+      userAgent,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
 
     return { newAccessToken, newRefreshToken };
   }
 
   async logoutUser(rToken) {
     if (!rToken) return;
-    const decoded = jwt.decode(rToken);
-    if (decoded && decoded.id) {
-      await User.findByIdAndUpdate(decoded.id, {
-        $pull: { refreshTokens: { token: rToken } },
-      });
-    }
+    const tokenHash = this.hashToken(rToken);
+    await Session.deleteOne({ tokenHash });
   }
 
   async getActiveSessions(userId, currentToken) {
     const user = await User.findById(userId);
     if (!user) throw new Error("User not found");
-    return user.refreshTokens.map(rt => ({
-      _id: rt._id,
-      deviceInfo: rt.deviceInfo,
-      createdAt: rt.createdAt,
-      isCurrentSession: rt.token === currentToken,
+
+    const sessions = await Session.find({ userId: user._id, revokedAt: null });
+    const currentHash = currentToken ? this.hashToken(currentToken) : null;
+
+    return sessions.map(s => ({
+      _id: s._id,
+      deviceInfo: s.deviceInformation || "Unknown Device",
+      ipAddress: s.ipAddress || "Unknown IP",
+      createdAt: s.createdAt,
+      isCurrentSession: s.tokenHash === currentHash,
     }));
   }
 
   async revokeSession(userId, sessionId) {
-    const user = await User.findById(userId);
-    if (!user) throw new Error("User not found");
+    const session = await Session.findOne({ _id: sessionId, userId });
+    if (!session) throw new Error("Session not found");
+    await Session.deleteOne({ _id: sessionId });
 
-    const sessionExists = user.refreshTokens.find(rt => rt._id.toString() === sessionId);
-    if (!sessionExists) throw new Error("Session not found");
-
-    user.refreshTokens = user.refreshTokens.filter(rt => rt._id.toString() !== sessionId);
-    await user.save();
-
-    await logAudit({ entity: "Session", entityId: sessionId, action: "Revoked Specific Session", performedBy: user._id });
+    await logAudit({ entity: "Session", entityId: sessionId, action: "Revoked Specific Session", performedBy: userId });
   }
 
   async revokeAllSessions(userId, currentToken) {
-    const user = await User.findById(userId);
-    if (!user) throw new Error("User not found");
+    const currentHash = currentToken ? this.hashToken(currentToken) : null;
+    if (currentHash) {
+      await Session.deleteMany({ userId, tokenHash: { $ne: currentHash } });
+    } else {
+      await Session.deleteMany({ userId });
+    }
 
-    user.refreshTokens = user.refreshTokens.filter(rt => rt.token === currentToken);
-    await user.save();
-
-    await logAudit({ entity: "Session", entityId: user._id, action: "Revoked All Other Sessions", performedBy: user._id });
+    await logAudit({ entity: "Session", entityId: userId, action: "Revoked All Other Sessions", performedBy: userId });
   }
 
   async forgotPassword(email, origin) {
