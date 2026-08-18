@@ -1,17 +1,22 @@
+require("dotenv").config(); // ← MUST be first: populates process.env before any other require()
+
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const cookieParser = require("cookie-parser");
 
 const connectDB = require("./config/db");
 
 const authRoutes = require("./routes/authRoutes");
+const oauthRoutes = require("./routes/oauthRoutes");
 const ticketRoutes = require("./routes/ticketRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const { errorHandler } = require("./middleware/errorMiddleware");
 
-dotenv.config();
+// Initialize Passport strategies (must be required before routes)
+require("./config/passportSetup");
+
 
 // Connect Database
 connectDB().then(async () => {
@@ -39,6 +44,11 @@ connectDB().then(async () => {
     credentials: true
   }));
   app.use(express.json());
+  app.use(cookieParser());
+
+  // Passport (session-less; no express-session needed)
+  const passport = require("passport");
+  app.use(passport.initialize());
 
   const limiter = rateLimit({
     windowMs: sessionTimeoutMinutes * 60 * 1000,
@@ -53,6 +63,7 @@ connectDB().then(async () => {
 
   // Routes
   app.use("/api/auth", authRoutes);
+  app.use("/api/auth", oauthRoutes);  // SSO: Google & Microsoft
   app.use("/api/tickets", ticketRoutes);
   app.use("/api/dashboard", dashboardRoutes);
   app.use("/api/notifications", require("./routes/notificationRoutes"));
