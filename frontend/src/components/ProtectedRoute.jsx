@@ -8,7 +8,10 @@ function isTokenExpired() {
   const token = getToken()
   if (!token) return true
   try {
-    const { exp } = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    const base64Url = token.split('.')[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=')
+    const { exp } = JSON.parse(atob(padded))
     return exp ? exp * 1000 <= Date.now() : false
   } catch {
     return true
