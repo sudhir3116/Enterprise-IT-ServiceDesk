@@ -15,6 +15,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import VerifyEmail from './pages/VerifyEmail'
 import NotFound from './pages/NotFound'
 import Unauthorized from './pages/Unauthorized'
 
@@ -104,6 +105,7 @@ function AppRouter() {
           <Route path="/register"       element={user ? <Navigate to={getDashboardPath(role)} replace /> : <Register />} />
           <Route path="/forgot-password"element={user ? <Navigate to={getDashboardPath(role)} replace /> : <ForgotPassword />} />
           <Route path="/reset-password" element={user ? <Navigate to={getDashboardPath(role)} replace /> : <ResetPassword />} />
+          <Route path="/verify-email"   element={<VerifyEmail />} />
         </Route>
 
         {/* ── Error pages (no sidebar) ───────────────────────── */}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { login as loginApi } from '../services/authApi'
+import { login as loginApi, resendVerification } from '../services/authApi'
 import { useAuth } from '../context/AuthContext'
 import {
   Mail,
@@ -28,9 +28,28 @@ export default function Login() {
   const [emailErr, setEmailErr]       = useState('')
   const [passErr, setPassErr]         = useState('')
   const [capsLockOn, setCapsLockOn]   = useState(false)
+  const [showResend, setShowResend]   = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSuccessMessage, setResendSuccessMessage] = useState('')
 
   const navigate = useNavigate()
   const { login } = useAuth()
+
+  async function handleResend() {
+    if (!email) return
+    setResendLoading(true)
+    setError(null)
+    setResendSuccessMessage('')
+    try {
+      const res = await resendVerification(email)
+      setResendSuccessMessage(res.message || 'Verification email has been resent!')
+      setShowResend(false)
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to resend verification email.')
+    } finally {
+      setResendLoading(false)
+    }
+  }
 
   const validateEmail = (v) => {
     if (!v)                                  return setEmailErr('Email is required.')
@@ -60,7 +79,13 @@ export default function Login() {
       const role = data.user?.role || 'employee'
       navigate(getDashboardPath(role), { replace: true })
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Login failed. Please try again.')
+      const errMsg = err.response?.data?.message || err.message || 'Login failed. Please try again.'
+      setError(errMsg)
+      if (errMsg.toLowerCase().includes('email not verified') || errMsg.toLowerCase().includes('verified')) {
+        setShowResend(true)
+      } else {
+        setShowResend(false)
+      }
     } finally {
       setLoading(false)
     }
@@ -189,10 +214,43 @@ export default function Login() {
             <p>Sign in to continue.</p>
           </div>
 
-          {/* Error banner */}
+          {/* Error/Success banners */}
           {error && (
             <div className="lp-error-banner" role="alert">
-              <span>⚠</span> {error}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>⚠</span>
+                  <span>{error}</span>
+                </div>
+                {showResend && (
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendLoading}
+                    style={{
+                      border: 'none',
+                      background: 'none',
+                      padding: 0,
+                      textAlign: 'left',
+                      fontSize: '0.78rem',
+                      textDecoration: 'underline',
+                      fontWeight: 600,
+                      color: 'var(--ds-primary, #2563eb)',
+                      cursor: 'pointer',
+                      marginTop: '4px'
+                    }}
+                  >
+                    {resendLoading ? 'Resending verification email...' : 'Didn\'t receive the email? Click here to resend.'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {resendSuccessMessage && (
+            <div className="lp-success-banner" role="alert">
+              <span>✓</span>
+              <span>{resendSuccessMessage}</span>
             </div>
           )}
 
