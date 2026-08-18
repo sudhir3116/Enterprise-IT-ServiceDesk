@@ -29,8 +29,12 @@ export default function Register() {
       setPasswordError('Password must be at least 8 characters.')
     } else if (!/[A-Z]/.test(val)) {
       setPasswordError('Must contain at least one uppercase letter.')
+    } else if (!/[a-z]/.test(val)) {
+      setPasswordError('Must contain at least one lowercase letter.')
     } else if (!/[0-9]/.test(val)) {
       setPasswordError('Must contain at least one number.')
+    } else if (!/[\W_]/.test(val)) {
+      setPasswordError('Must contain at least one special character.')
     } else {
       setPasswordError('')
     }
@@ -92,7 +96,7 @@ export default function Register() {
               <span className="font-heading font-extrabold text-lg">⚡</span>
             </div>
             <div>
-              <span className="block font-heading font-bold text-sm text-zinc-100 uppercase tracking-wider">Employee IT Helpdesk System</span>
+              <span className="block font-heading font-bold text-sm text-zinc-100 uppercase tracking-wider">Product Support Portal</span>
               <span className="block text-[10px] text-zinc-450 uppercase">Enterprise Support Desk</span>
             </div>
           </div>
@@ -101,7 +105,7 @@ export default function Register() {
             Join the internal corporate support desk.
           </h2>
           <p className="text-sm text-zinc-400 leading-relaxed mb-10 max-w-xl">
-            Create an employee profile to start cataloging hardware issues, requesting software access, or triaging hardware/software troubleshooting requests.
+            Create a customer or agent profile to raise tickets, request software details, or triage hardware/software troubleshooting requests.
           </p>
 
           <div className="relative z-10 flex items-center justify-between text-xs font-semibold text-zinc-500 border-t border-zinc-800 pt-6 uppercase tracking-wider">
@@ -125,7 +129,7 @@ export default function Register() {
                 <span className="font-heading font-extrabold text-lg">⚡</span>
               </div>
               <div>
-                <span className="block font-heading font-bold text-sm text-slate-900 uppercase tracking-wider">ITSM ServiceDesk</span>
+                <span className="block font-heading font-bold text-sm text-slate-900 uppercase tracking-wider">Product Support Portal</span>
               </div>
             </div>
 
@@ -268,7 +272,7 @@ export default function Register() {
         {/* Footer */}
         <div className="w-full py-8 text-center shrink-0">
           <p className="text-xs text-slate-400 leading-relaxed">
-            &copy; 2026 ITSM ServiceDesk. All rights reserved. <br />
+            &copy; 2026 Product Support Portal. All rights reserved. <br />
             <span className="font-mono text-[11px] text-slate-400 mt-1 block">Version 2.4.0 &bull; System Active</span>
           </p>
         </div>
