@@ -49,7 +49,7 @@ export default function NotFound() {
 
         {/* Footer */}
         <p className="mt-10 text-xs text-slate-400">
-          Employee IT Helpdesk &bull; Support Reference: ERR-404
+          Product Support Portal &bull; Support Reference: ERR-404
         </p>
       </div>
     </div>

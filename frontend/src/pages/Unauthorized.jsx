@@ -70,7 +70,7 @@ export default function Unauthorized() {
 
         {/* Footer */}
         <p className="mt-6 text-xs text-slate-400">
-          Employee IT Helpdesk &bull; Support Reference: ERR-403
+          Product Support Portal &bull; Support Reference: ERR-403
         </p>
       </div>
     </div>

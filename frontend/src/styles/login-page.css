@@ -529,6 +529,45 @@
 
 .lp-btn-secondary:hover { background: #f8fafc; border-color: #cbd5e1; }
 
+/* Google Button */
+.lp-btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  height: 50px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  font-family: 'Inter', system-ui, sans-serif;
+  margin-top: 8px;
+}
+
+.lp-btn-google:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+}
+
+html.dark .lp-btn-google,
+.dark .lp-btn-google {
+  background-color: var(--ds-surface-raised);
+  border-color: var(--ds-border);
+  color: var(--ds-text-primary);
+}
+
+html.dark .lp-btn-google:hover,
+.dark .lp-btn-google:hover {
+  background-color: var(--ds-hover);
+  border-color: var(--ds-border-strong);
+}
+
 /* ── FOOTER ─────────────────────────────────────────────────── */
 .lp-footer {
   position: absolute;
