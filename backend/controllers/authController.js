@@ -5,6 +5,7 @@ const bcrypt = require("bcryptjs");
 const sendEmail = require("../utils/sendEmail");
 const Notification = require("../models/Notification");
 const { logAudit } = require("../utils/auditLogger");
+const auditService = require("../services/auditService");
 const { normalizeRole } = require("../middleware/authMiddleware");
 const authService = require("../services/authService");
 
@@ -446,7 +447,9 @@ const deleteUserByAdmin = async (req, res, next) => {
 
 const forgotPassword = async (req, res, next) => {
   try {
-    await authService.forgotPassword(req.body.email, req.headers.origin);
+    const ipAddress = req.ip || req.connection?.remoteAddress || "";
+    const userAgent = req.headers["user-agent"] || "";
+    await authService.forgotPassword(req.body.email, req.headers.origin, ipAddress, userAgent);
     res.status(200).json({
       message: "If the email is registered in our system, a password reset link has been dispatched.",
     });
@@ -545,7 +548,13 @@ const refreshToken = async (req, res, next) => {
 
 const logoutUser = async (req, res, next) => {
   try {
+    const ipAddress = req.ip || req.connection?.remoteAddress || "";
+    const userAgent = req.headers["user-agent"] || "";
     await authService.logoutUser(req.cookies.refreshToken);
+    // Structured audit: LOGOUT
+    if (req.user) {
+      auditService.auth.logout(req.user._id, req.user.email, ipAddress, userAgent);
+    }
     res.clearCookie("refreshToken", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

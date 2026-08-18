@@ -25,7 +25,8 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-microsoft": "^2.1.0",
-    "ua-parser-js": "^2.0.10"
+    "ua-parser-js": "^2.0.10",
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

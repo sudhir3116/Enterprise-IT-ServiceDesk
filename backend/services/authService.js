@@ -5,6 +5,7 @@ const bcrypt = require("bcryptjs");
 const sendEmail = require("../utils/sendEmail");
 const Notification = require("../models/Notification");
 const { logAudit } = require("../utils/auditLogger");
+const auditService = require("./auditService");
 const UAParser = require("ua-parser-js");
 const crypto = require("crypto");
 const { normalizeRole } = require("../middleware/authMiddleware");
@@ -62,10 +63,8 @@ class AuthService {
       isEmailVerified: false,
     });
 
-    await logAudit({
-      entity: "User", entityId: user._id, action: "Self Registration", performedBy: user._id,
-      after: { name: user.name, email: user.email, role: user.role }
-    });
+    // Structured audit: USER_REGISTERED
+    auditService.auth.userRegistered(user._id, user.email, origin, null, user.role);
 
     // Fire & Forget Verification Email
     this.sendVerificationEmail(user, verificationToken, origin).catch(err => console.error("Verification email failed:", err.message));
@@ -143,25 +142,20 @@ class AuthService {
   async loginUser(email, password, userAgent, ipAddress = "", rememberMe = false) {
     const user = await User.findOne({ email });
     if (!user) {
-      // Audit log failed attempt for non-existent user
-      await logAudit({
-        entity: "User",
-        entityId: null,
-        action: "Login Failed",
-        performedBy: null,
-        after: { email, reason: "User not found" },
-        ipAddress
-      }).catch(()=>{});
+      // Fire-and-forget: LOGIN_FAILED — unknown email
+      auditService.auth.loginFailed(email, ipAddress, userAgent, "User not found");
       throw new Error("Invalid email or password.");
     }
 
     if (user.accountStatus === "inactive") {
+      auditService.auth.loginFailed(user.email, ipAddress, userAgent, "Account deactivated");
       throw new Error("Account deactivated. Contact support.");
     }
 
     // Check if account is locked
     if (user.lockUntil && user.lockUntil > Date.now()) {
       const remainingTime = Math.ceil((user.lockUntil - Date.now()) / 60000);
+      auditService.auth.loginFailed(user.email, ipAddress, userAgent, "Account locked", user.failedLoginAttempts);
       throw new Error(`Account temporarily locked due to failed attempts. Try again in ${remainingTime} minutes.`);
     }
 
@@ -175,28 +169,23 @@ class AuthService {
         user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes lockout
         await user.save();
 
-        await logAudit({
-          entity: "User",
-          entityId: user._id,
-          action: "Account Locked",
-          performedBy: user._id,
-          after: { email: user.email, reason: "5 consecutive failed login attempts" },
-          ipAddress
-        }).catch(()=>{});
+        // Structured audit: ACCOUNT_LOCKED (severity: CRITICAL)
+        auditService.auth.accountLocked(
+          user._id, user.email, ipAddress, userAgent,
+          new Date(Date.now() + 15 * 60 * 1000)
+        );
 
         throw new Error("Account locked due to consecutive failed attempts. Try again in 15 minutes.");
       }
 
       await user.save();
 
-      await logAudit({
-        entity: "User",
-        entityId: user._id,
-        action: "Login Failed",
-        performedBy: user._id,
-        after: { email: user.email, reason: "Incorrect password" },
-        ipAddress
-      }).catch(()=>{});
+      // Structured audit: LOGIN_FAILED with attempt count
+      auditService.auth.loginFailed(
+        user.email, ipAddress, userAgent,
+        "Incorrect password",
+        user.failedLoginAttempts
+      );
 
       throw new Error(`Invalid email or password. Attempt ${user.failedLoginAttempts} of 5 before lockout.`);
     }
@@ -209,14 +198,8 @@ class AuthService {
 
     const timeout = await this.getSessionTimeout();
 
-    await logAudit({
-      entity: "User",
-      entityId: user._id,
-      action: "Login",
-      performedBy: user._id,
-      after: { email: user.email, role: user.role },
-      ipAddress
-    }).catch(()=>{});
+    // Structured audit: LOGIN_SUCCESS
+    auditService.auth.loginSuccess(user._id, user.email, ipAddress, userAgent, "EMAIL");
 
     const accessToken = this.generateAccessToken(user._id, timeout);
     const durationDays = rememberMe ? 30 : 1;
@@ -225,7 +208,7 @@ class AuthService {
     const deviceInfo = this.getDeviceInfo(userAgent);
     const tokenHash = this.hashToken(refreshToken);
 
-    await Session.create({
+    const session = await Session.create({
       userId: user._id,
       tokenHash,
       deviceInformation: deviceInfo,
@@ -234,6 +217,9 @@ class AuthService {
       expiresAt: new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000),
       rememberMe,
     });
+
+    // Structured audit: SESSION_CREATED
+    auditService.auth.sessionCreated(user._id, user.email, ipAddress, userAgent, rememberMe);
 
     return { user, accessToken, refreshToken, rememberMe };
   }
@@ -275,6 +261,9 @@ class AuthService {
       expiresAt: new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000),
       rememberMe,
     });
+
+    // Structured audit: TOKEN_REFRESHED
+    auditService.auth.tokenRefreshed(user._id, user.email, ipAddress, userAgent);
 
     return { newAccessToken, newRefreshToken, rememberMe };
   }
@@ -320,7 +309,7 @@ class AuthService {
     await logAudit({ entity: "Session", entityId: userId, action: "Revoked All Other Sessions", performedBy: userId });
   }
 
-  async forgotPassword(email, origin) {
+  async forgotPassword(email, origin, ipAddress, userAgent) {
     const user = await User.findOne({ email });
     if (!user) return; // Security: Don't leak existence
 
@@ -328,6 +317,9 @@ class AuthService {
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = Date.now() + 3600000;
     await user.save();
+
+    // Structured audit: PASSWORD_RESET_REQUESTED
+    auditService.auth.passwordResetRequested(user._id, user.email, ipAddress, userAgent);
 
     const resetUrl = `${origin || "http://localhost:5173"}/reset-password?token=${resetToken}`;
     const emailHtml = `
@@ -359,13 +351,8 @@ class AuthService {
     user.lockUntil = undefined;
     await user.save();
 
-    await logAudit({
-      entity: "User",
-      entityId: user._id,
-      action: "Password Reset via Token",
-      performedBy: user._id,
-      ipAddress
-    }).catch(()=>{});
+    // Structured audit: PASSWORD_RESET_COMPLETED (severity: WARNING)
+    auditService.auth.passwordResetCompleted(user._id, user.email, ipAddress, null);
   }
 }
 

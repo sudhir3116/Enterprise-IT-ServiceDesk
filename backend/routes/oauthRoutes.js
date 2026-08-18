@@ -13,6 +13,7 @@ const express = require("express");
 const router = express.Router();
 const passport = require("passport");
 const authService = require("../services/authService");
+const auditService = require("../services/auditService");
 const { logAudit } = require("../utils/auditLogger");
 const Session = require("../models/Session");
 const crypto = require("crypto");
@@ -39,25 +40,29 @@ const handleOAuthSuccess = async (req, res, user) => {
     const deviceInfo = authService.getDeviceInfo(req.headers["user-agent"]);
     const tokenHash = hashToken(refreshToken);
     const ipAddress = req.ip || req.connection?.remoteAddress || "";
+    const userAgent = req.headers["user-agent"] || "";
 
     await Session.create({
       userId: user._id,
       tokenHash,
       deviceInformation: deviceInfo,
       ipAddress,
-      userAgent: req.headers["user-agent"],
+      userAgent,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     });
 
     user.lastLogin = new Date();
     await user.save();
 
-    await logAudit({
-      entity: "User", entityId: user._id,
-      action: `SSO Login (${user.authProvider})`,
-      performedBy: user._id,
-      after: { email: user.email, authProvider: user.authProvider },
-    }).catch(() => {});
+    // Structured audit: provider-specific SSO login
+    if (user.authProvider === "google") {
+      auditService.auth.googleLogin(user._id, user.email, ipAddress, userAgent);
+    } else if (user.authProvider === "microsoft") {
+      auditService.auth.microsoftLogin(user._id, user.email, ipAddress, userAgent);
+    }
+
+    // Structured audit: SESSION_CREATED for OAuth sessions
+    auditService.auth.sessionCreated(user._id, user.email, ipAddress, userAgent, false);
 
     // Set HttpOnly refresh token cookie (sameSite: lax for OAuth redirect flow)
     res.cookie("refreshToken", refreshToken, {
