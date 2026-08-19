@@ -46,6 +46,4 @@ const emailConfigurationSchema = new mongoose.Schema(
   }
 );
 
-emailConfigurationSchema.index({ organizationId: 1 });
-
 module.exports = mongoose.model("EmailConfiguration", emailConfigurationSchema);
