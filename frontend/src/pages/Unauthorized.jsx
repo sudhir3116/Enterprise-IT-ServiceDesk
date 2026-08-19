@@ -1,12 +1,12 @@
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ShieldOff, ArrowLeft } from 'lucide-react'
-import { getUser } from '../services/auth'
+import { useAuth } from '../context/AuthContext'
 import { getDashboardPath } from '../utils/paths'
 
 export default function Unauthorized() {
   const navigate = useNavigate()
-  const user = getUser()
+  const { user } = useAuth()
 
   function getDashboard() {
     const role = user?.role || ''

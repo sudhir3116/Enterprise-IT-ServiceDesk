@@ -5,7 +5,7 @@ import {
   AlertCircle, ChevronRight, Megaphone, HelpCircle, 
   Eye, FileText, ArrowRight
 } from 'lucide-react'
-import { getUser } from '../services/auth'
+import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
 import Badge from '../components/enterprise/Badge'
 import Card from '../components/enterprise/Card'
@@ -14,7 +14,7 @@ import PageHeader from '../components/enterprise/PageHeader'
 
 export default function EmployeeDashboard() {
   const navigate = useNavigate()
-  const user = getUser()
+  const { user } = useAuth()
 
   const [tickets, setTickets] = useState([])
   const [notifications, setNotifications] = useState([])

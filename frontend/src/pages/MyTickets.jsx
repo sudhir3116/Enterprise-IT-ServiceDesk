@@ -141,6 +141,22 @@ export default function MyTickets() {
                 )},
                 {header: 'Status', accessor: (row) => <Badge color={getStatusColor(row.status)}>{row.status}</Badge>},
                 {header: 'Priority', accessor: (row) => renderPriority(row.priority)},
+                {
+                  header: 'Target Resolution SLA', 
+                  accessor: (row) => {
+                    const due = row.sla?.resolutionDue || row.dueDate
+                    if (!due) return <span className="text-xs text-tertiary">Standard</span>
+                    const isBreached = row.slaBreached || row.sla?.breached || new Date(due) < new Date()
+                    if (['Resolved', 'Closed'].includes(row.status)) {
+                      return <Badge color="green">Met</Badge>
+                    }
+                    return (
+                      <Badge color={isBreached ? 'red' : 'blue'}>
+                        {new Date(due).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </Badge>
+                    )
+                  }
+                },
                 {header: 'Created', accessor: (row) => <span className="text-[12px] text-tertiary">{new Date(row.createdAt).toLocaleDateString()}</span>},
                 {header: '', accessor: (row) => (
                     <div className="text-right">

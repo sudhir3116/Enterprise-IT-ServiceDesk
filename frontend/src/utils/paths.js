@@ -1,11 +1,15 @@
 export function getDashboardPath(role) {
-  if (role === 'admin')            return '/admin/dashboard'
-  if (role === 'support_engineer') return '/engineer/dashboard'
-  return '/employee/dashboard'
+  const norm = (role || '').toString().toLowerCase().trim();
+  if (norm === 'admin') return '/admin/dashboard';
+  if (norm === 'support_engineer' || norm === 'agent') return '/engineer/dashboard';
+  if (norm === 'developer') return '/developer/bugs';
+  return '/employee/dashboard';
 }
 
 export function getSettingsPath(role) {
-  if (role === 'admin')            return '/admin/settings'
-  if (role === 'support_engineer') return '/engineer/profile'
-  return '/employee/profile'
+  const norm = (role || '').toString().toLowerCase().trim();
+  if (norm === 'admin') return '/admin/settings';
+  if (norm === 'support_engineer' || norm === 'agent') return '/engineer/profile';
+  if (norm === 'developer') return '/developer/bugs';
+  return '/employee/profile';
 }

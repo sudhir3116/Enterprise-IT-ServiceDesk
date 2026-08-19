@@ -33,23 +33,62 @@ const isStrategyRegistered = (name) => !!passport._strategies[name];
 // ─────────────────────────────────────────────────────────────────────────────
 const handleOAuthSuccess = async (req, res, user) => {
   try {
+    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+
+    // Enforce account approval governance before issuing tokens or creating sessions
+    if (user.accountStatus === "pending_approval" || !user.isApproved) {
+      console.log(`[OAuth] User ${user.email} is pending approval. Redirecting to frontend callback with pending status...`);
+      const email = encodeURIComponent(user.email || '');
+      const name = encodeURIComponent(user.name || '');
+      const provider = encodeURIComponent(user.authProvider || 'google');
+      const role = encodeURIComponent(user.role || 'customer');
+      return res.redirect(`${clientUrl}/oauth-callback?status=pending_approval&email=${email}&name=${name}&provider=${provider}&role=${role}`);
+    }
+
+    if (user.accountStatus === "rejected") {
+      console.log(`[OAuth] Access blocked for user ${user.email}: Account request was rejected.`);
+      return res.redirect(`${clientUrl}/oauth-callback?status=rejected`);
+    }
+
+    if (user.accountStatus === "suspended" || user.accountStatus === "inactive") {
+      console.log(`[OAuth] Access blocked for user ${user.email}: Account is suspended or inactive.`);
+      return res.redirect(`${clientUrl}/oauth-callback?status=suspended`);
+    }
+
     const timeout = await authService.getSessionTimeout();
     const accessToken = authService.generateAccessToken(user._id, timeout);
-    const refreshToken = authService.generateRefreshToken(user._id, 7);
 
     const deviceInfo = authService.getDeviceInfo(req.headers["user-agent"]);
-    const tokenHash = hashToken(refreshToken);
     const ipAddress = req.ip || req.connection?.remoteAddress || "";
     const userAgent = req.headers["user-agent"] || "";
 
-    await Session.create({
-      userId: user._id,
-      tokenHash,
-      deviceInformation: deviceInfo,
-      ipAddress,
-      userAgent,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    });
+    let createdSession = null;
+    let attempts = 0;
+    let refreshToken;
+    let tokenHash;
+
+    while (!createdSession && attempts < 3) {
+      attempts++;
+      refreshToken = authService.generateRefreshToken(user._id, 7);
+      tokenHash = authService.hashToken(refreshToken);
+
+      try {
+        createdSession = await Session.create({
+          userId: user._id,
+          tokenHash,
+          deviceInformation: deviceInfo,
+          ipAddress,
+          userAgent,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        });
+      } catch (sessionErr) {
+        if (sessionErr.code === 11000 && attempts < 3) {
+          console.warn(`[OAuth] Token hash collision detected for user ${user._id}, retrying with fresh entropy...`);
+          continue;
+        }
+        throw sessionErr;
+      }
+    }
 
     user.lastLogin = new Date();
     await user.save();
@@ -64,8 +103,12 @@ const handleOAuthSuccess = async (req, res, user) => {
     // Structured audit: SESSION_CREATED for OAuth sessions
     auditService.auth.sessionCreated(user._id, user.email, ipAddress, userAgent, false);
 
+    console.log("REFRESH TOKEN CREATED", refreshToken);
+    console.log("HASH STORED", tokenHash);
+
     // Set HttpOnly refresh token cookie (sameSite: lax for OAuth redirect flow)
     res.cookie("refreshToken", refreshToken, {
+      path: "/",
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
@@ -74,10 +117,9 @@ const handleOAuthSuccess = async (req, res, user) => {
 
     // Redirect to frontend with access token in query param
     // The client reads this once, stores in memory, then clears from URL
-    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
     res.redirect(`${clientUrl}/oauth-callback?token=${accessToken}`);
   } catch (err) {
-    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    console.error("[OAuth] handleOAuthSuccess error:", err);
     res.redirect(`${clientUrl}/login?error=sso_failed`);
   }
 };

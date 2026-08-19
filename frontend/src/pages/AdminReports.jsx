@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { BarChart3, Download, TrendingUp, Filter, AlertCircle, TrendingDown } from 'lucide-react'
+import api from '../services/api'
 import Button from '../components/enterprise/Button'
 import Card, { StatCard } from '../components/enterprise/Card'
 import PageHeader from '../components/enterprise/PageHeader'
@@ -60,6 +61,21 @@ export default function AdminReports() {
 
   // Chart colors come from useChartTheme — no hardcoded values
 
+  const handleExportCSV = async () => {
+    try {
+      const res = await api.get('/reports/export/ticket', { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `ticket_report_${Date.now()}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+    } catch (err) {
+      console.error('Export failed:', err)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6 w-full pb-10">
       
@@ -71,7 +87,7 @@ export default function AdminReports() {
           { name: 'Admin', path: '/admin/dashboard' },
           { name: 'Reports' }
         ]}
-        primaryAction={<Button variant="primary" icon={Download}>Export CSV</Button>}
+        primaryAction={<Button variant="primary" icon={Download} onClick={handleExportCSV}>Export CSV</Button>}
         secondaryActions={<Button variant="secondary" icon={Filter}>Filters</Button>}
       />
 

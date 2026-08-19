@@ -17,6 +17,8 @@ const {
   forgotPassword,
   resetPassword,
   getProfile,
+  getMe,
+  getApprovalStatus,
   getActiveSessions,
   revokeSession,
   revokeAllSessions,
@@ -37,7 +39,7 @@ const {
 // Strict rate limiter for authentication endpoints to prevent brute-force attacks
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 15, // limit each IP to 15 attempts per windowMs
+  max: 100, // limit each IP to 100 attempts per windowMs
   message: {
     message: "Too many authentication requests from this IP. Please try again after 15 minutes."
   },
@@ -57,12 +59,20 @@ router.get("/verify-email/:token", verifyEmail);
 router.post("/resend-verification", resendVerificationValidator, resendVerificationEmail);
 
 // User & Profile Management
+router.get("/me", protect, getMe);
+router.get("/approval-status", (req, res, next) => {
+  if (req.query && req.query.email) {
+    return getApprovalStatus(req, res, next);
+  }
+  return protect(req, res, () => getApprovalStatus(req, res, next));
+});
 router.get("/profile", protect, getProfile);
 router.get("/users", protect, requireRole("admin", "agent"), getAllUsers);
 router.post("/users", protect, requireRole("admin"), createUserByAdmin);
 router.put("/users/:id/role", protect, requireRole("admin"), updateUserRole);
 router.delete("/users/:id", protect, requireRole("admin"), deleteUserByAdmin);
 router.put("/profile", protect, updateUserProfile);
+router.patch("/profile", protect, updateUserProfile);
 router.put("/users/:id/password", protect, updatePassword);
 router.delete("/delete-account", protect, deleteAccount);
 

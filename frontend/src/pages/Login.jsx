@@ -84,8 +84,19 @@ export default function Login() {
       console.log('[Login] Navigating to dashboard:', dashPath)
       navigate(dashPath, { replace: true })
     } catch (err) {
-      const errMsg = err.response?.data?.message || err.message || 'Login failed. Please try again.'
-      console.error('[Login] Login failed:', errMsg)
+      console.error('[Login] Login error caught:', err)
+      let errMsg = 'Invalid email or password.'
+      if (!err.response) {
+        // Network / Connection Error (e.g., backend offline, network disconnected)
+        errMsg = 'Network connection error. Please check your internet connection.'
+      } else if (err.response.status >= 500) {
+        // Server Error
+        errMsg = 'An unexpected server error occurred. Please try again later.'
+      } else {
+        // 400 / 401 / 403 API response error message
+        errMsg = err.response?.data?.message || 'Invalid email or password.'
+      }
+
       setError(errMsg)
       if (errMsg.toLowerCase().includes('email not verified') || errMsg.toLowerCase().includes('verified')) {
         setShowResend(true)
@@ -358,7 +369,8 @@ export default function Login() {
             type="button"
             className="lp-btn-google"
             onClick={() => {
-              window.location.href = 'http://localhost:8001/api/auth/google';
+              const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8001';
+              window.location.href = `${apiBase}/api/auth/google`;
             }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '2px' }}>

@@ -89,10 +89,28 @@ export default function Navbar({ user, onLogout }) {
       <nav className="navbar">
         <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
 
-          {/* Brand */}
-          <Link to={getDashboardPath()} className="brand" style={{ fontWeight: 800, letterSpacing: '-0.02em', fontSize: '1rem' }}>
-            IT HelpDesk
-          </Link>
+          {/* Brand & Tenant Badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Link to={getDashboardPath()} className="brand" style={{ fontWeight: 800, letterSpacing: '-0.02em', fontSize: '1rem' }}>
+              Product Support Portal
+            </Link>
+            {user?.organization?.name && (
+              <span style={{
+                fontSize: '0.72rem',
+                fontWeight: 600,
+                padding: '2px 8px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                color: 'var(--ds-primary, #2563eb)',
+                border: '1px solid rgba(37, 99, 235, 0.2)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                <span>🏢</span> {user.organization.name}
+              </span>
+            )}
+          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
 

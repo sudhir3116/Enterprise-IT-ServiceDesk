@@ -3,22 +3,24 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { 
   ArrowLeft, Clock, Calendar, Shield, User, MessageSquare, 
   Activity, Tag, Trash2, CheckCircle2, AlertTriangle, Lock, Unlock, 
-  Send, UserCheck, Play, Check, XCircle, FileText, Download, Building
+  Send, UserCheck, Play, Check, XCircle, FileText, Download, Building,
+  Bug, BookOpen, ChevronDown, ChevronUp, Save, FlaskConical
 } from 'lucide-react'
-import api from '../services/api'
-import { getUser } from '../services/auth'
+import { useAuth } from '../context/AuthContext'
 import Button from '../components/enterprise/Button'
 import Badge from '../components/enterprise/Badge'
 import Card from '../components/enterprise/Card'
 import PageHeader from '../components/enterprise/PageHeader'
+import Modal from '../components/enterprise/Modal'
 import { useToast } from '../hooks/useToast'
+import { saveInvestigation, createBug, createArticleFromTicket } from '../services/bugApi'
 
 export default function EngineerTicketDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { addToast } = useToast()
+  const { user: currentUser } = useAuth()
   
-  const currentUser = getUser()
   const currentUserId = currentUser?._id || currentUser?.id
 
   const [ticket, setTicket] = useState(null)
@@ -29,6 +31,25 @@ export default function EngineerTicketDetails() {
   
   const [activeNoteTab, setActiveNoteTab] = useState('public') // 'public' | 'internal'
   const [commentText, setCommentText] = useState('')
+
+  // ── Module 8: Investigation Panel ─────────────────────────────────────────
+  const [investigationOpen, setInvestigationOpen] = useState(false)
+  const [investigation, setInvestigation] = useState({
+    issueType: 'Bug', severity: 'Medium', reproducible: 'Yes',
+    appVersion: '', technicalNotes: '',
+    stepsToReproduce: '', expectedBehavior: '', actualBehavior: ''
+  })
+  const [savingInvestigation, setSavingInvestigation] = useState(false)
+
+  // ── Module 8: Bug Report Modal ─────────────────────────────────────────────
+  const [bugModalOpen, setBugModalOpen] = useState(false)
+  const [bugForm, setBugForm] = useState({ title: '', description: '', severity: 'Medium', assignedDeveloper: '' })
+  const [creatingBug, setCreatingBug] = useState(false)
+
+  // ── Module 8: Create KB Article Modal ─────────────────────────────────────
+  const [kbModalOpen, setKbModalOpen] = useState(false)
+  const [kbForm, setKbForm] = useState({ title: '', content: '', category: '', visibility: 'internal' })
+  const [creatingArticle, setCreatingArticle] = useState(false)
 
   const insertFormatting = (prefix, suffix = '') => {
     const textarea = document.getElementById('comment-editor')
@@ -167,6 +188,86 @@ export default function EngineerTicketDetails() {
       addToast(err.response?.data?.message || 'Failed to post message', 'error')
     } finally {
       setPostingComment(false)
+    }
+  }
+
+  // ── Module 8 Handlers ─────────────────────────────────────────────────────
+
+  const handleSaveInvestigation = async () => {
+    setSavingInvestigation(true)
+    try {
+      await saveInvestigation(id, investigation)
+      addToast('Investigation details saved', 'success')
+      await loadTicket()
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to save investigation', 'error')
+    } finally {
+      setSavingInvestigation(false)
+    }
+  }
+
+  const openBugModal = () => {
+    if (ticket) {
+      setBugForm({
+        title: ticket.title,
+        description: ticket.description || '',
+        severity: ticket.investigation?.severity || ticket.priority || 'Medium',
+        assignedDeveloper: ''
+      })
+    }
+    setBugModalOpen(true)
+  }
+
+  const handleCreateBug = async () => {
+    if (!bugForm.title.trim()) return addToast('Bug title is required', 'error')
+    setCreatingBug(true)
+    try {
+      const result = await createBug({
+        ticketId: id,
+        ...bugForm,
+        reproductionSteps: investigation.stepsToReproduce || ticket?.issueDetails?.stepsToReproduce || '',
+        expectedBehaviour: investigation.expectedBehavior  || ticket?.issueDetails?.expectedBehavior || '',
+        actualBehaviour:   investigation.actualBehavior    || ticket?.issueDetails?.actualBehavior   || '',
+        environment: {
+          browser:    ticket?.environment?.browser || '',
+          OS:         ticket?.environment?.OS || '',
+          device:     ticket?.environment?.device || '',
+          appVersion: investigation.appVersion || '',
+        }
+      })
+      addToast(`Bug report ${result.bug?.bugNumber} created!`, 'success')
+      setBugModalOpen(false)
+      await loadTicket()
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to create bug report', 'error')
+    } finally {
+      setCreatingBug(false)
+    }
+  }
+
+  const openKbModal = () => {
+    if (ticket) {
+      setKbForm({
+        title: ticket.title,
+        content: '',
+        category: ticket.category || '',
+        visibility: 'internal'
+      })
+    }
+    setKbModalOpen(true)
+  }
+
+  const handleCreateArticle = async () => {
+    if (!kbForm.title.trim()) return addToast('Article title is required', 'error')
+    setCreatingArticle(true)
+    try {
+      const result = await createArticleFromTicket(id, kbForm)
+      addToast('Knowledge article created as draft!', 'success')
+      setKbModalOpen(false)
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to create article', 'error')
+    } finally {
+      setCreatingArticle(false)
     }
   }
 
@@ -766,6 +867,276 @@ export default function EngineerTicketDetails() {
           <p className="text-[11.5px] mt-1" style={{ color: 'var(--ds-text-muted)' }}>Replies and internal notes are no longer permitted on this incident request.</p>
         </Card>
       )}
+
+      {/* ── Module 8: Investigation Panel (Engineer / Admin only) ─────────────── */}
+      {['admin', 'support_engineer', 'agent'].includes(currentUser?.role) && (
+        <Card>
+          <button
+            onClick={() => setInvestigationOpen(o => !o)}
+            className="w-full p-4 flex items-center justify-between text-left hover:bg-[var(--ds-surface-raised)] transition-colors rounded-lg"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#6366f118' }}>
+                <FlaskConical size={16} style={{ color: '#6366f1' }} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--ds-text-primary)' }}>Bug Investigation Panel</p>
+                <p className="text-xs" style={{ color: 'var(--ds-text-muted)' }}>Internal only — document issue type, severity, and reproduction details</p>
+              </div>
+            </div>
+            {investigationOpen ? <ChevronUp size={16} style={{ color: 'var(--ds-text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--ds-text-muted)' }} />}
+          </button>
+
+          {investigationOpen && (
+            <div className="px-4 pb-4 border-t flex flex-col gap-4" style={{ borderColor: 'var(--ds-border)' }}>
+              <div className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>Issue Type</label>
+                  <select
+                    className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none"
+                    style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+                    value={investigation.issueType}
+                    onChange={e => setInvestigation(p => ({ ...p, issueType: e.target.value }))}
+                  >
+                    {['Bug', 'Question', 'Feature Request', 'Configuration Issue'].map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>Severity</label>
+                  <select
+                    className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none"
+                    style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+                    value={investigation.severity}
+                    onChange={e => setInvestigation(p => ({ ...p, severity: e.target.value }))}
+                  >
+                    {['Critical', 'High', 'Medium', 'Low'].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>Reproducible?</label>
+                  <select
+                    className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none"
+                    style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+                    value={investigation.reproducible}
+                    onChange={e => setInvestigation(p => ({ ...p, reproducible: e.target.value }))}
+                  >
+                    {['Yes', 'No', 'Intermittent'].map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div className="sm:col-span-3">
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>App Version (optional)</label>
+                  <input
+                    className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none"
+                    style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+                    placeholder="e.g. v2.4.1"
+                    value={investigation.appVersion}
+                    onChange={e => setInvestigation(p => ({ ...p, appVersion: e.target.value }))}
+                  />
+                </div>
+                <div className="sm:col-span-3">
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>Steps to Reproduce</label>
+                  <textarea
+                    rows={3}
+                    className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none resize-none"
+                    style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+                    placeholder="1. Navigate to... 2. Click on... 3. Observe..."
+                    value={investigation.stepsToReproduce}
+                    onChange={e => setInvestigation(p => ({ ...p, stepsToReproduce: e.target.value }))}
+                  />
+                </div>
+                <div className="sm:col-span-3 grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>Expected Behaviour</label>
+                    <textarea
+                      rows={2}
+                      className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none resize-none"
+                      style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+                      value={investigation.expectedBehavior}
+                      onChange={e => setInvestigation(p => ({ ...p, expectedBehavior: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>Actual Behaviour</label>
+                    <textarea
+                      rows={2}
+                      className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none resize-none"
+                      style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+                      value={investigation.actualBehavior}
+                      onChange={e => setInvestigation(p => ({ ...p, actualBehavior: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="sm:col-span-3">
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>Technical Notes (internal only)</label>
+                  <textarea
+                    rows={3}
+                    className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none resize-none"
+                    style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+                    placeholder="Paste error logs, stack traces, internal findings…"
+                    value={investigation.technicalNotes}
+                    onChange={e => setInvestigation(p => ({ ...p, technicalNotes: e.target.value }))}
+                  />
+                </div>
+              </div>
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 flex-wrap pt-2 border-t" style={{ borderColor: 'var(--ds-border)' }}>
+                <Button variant="primary" size="sm" icon={Save} isLoading={savingInvestigation} onClick={handleSaveInvestigation}>
+                  Save Investigation
+                </Button>
+                <Button variant="secondary" size="sm" icon={Bug} onClick={openBugModal}>
+                  Create Bug Report
+                </Button>
+                {['Resolved', 'Closed'].includes(ticket?.status) && (
+                  <Button variant="secondary" size="sm" icon={BookOpen} onClick={openKbModal}>
+                    Create Knowledge Article
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* KB Article button for resolved tickets (outside investigation panel) */}
+      {['admin', 'support_engineer', 'agent'].includes(currentUser?.role) &&
+       ['Resolved', 'Closed'].includes(ticket?.status) && !investigationOpen && (
+        <Card>
+          <div className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#10b98118' }}>
+                <BookOpen size={16} style={{ color: '#10b981' }} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--ds-text-primary)' }}>Ticket Resolved</p>
+                <p className="text-xs" style={{ color: 'var(--ds-text-muted)' }}>Convert this resolution into a reusable knowledge article</p>
+              </div>
+            </div>
+            <Button variant="secondary" size="sm" icon={BookOpen} onClick={openKbModal}>
+              Create Knowledge Article
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* ── Bug Report Modal ───────────────────────────────────────────────── */}
+      <Modal
+        isOpen={bugModalOpen}
+        onClose={() => setBugModalOpen(false)}
+        title={
+          <div className="flex items-center gap-2">
+            <Bug size={18} style={{ color: '#ef4444' }} />
+            Create Bug Report
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>Bug Title <span className="text-red-500">*</span></label>
+            <input
+              className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none"
+              style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+              value={bugForm.title}
+              onChange={e => setBugForm(p => ({ ...p, title: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>Severity</label>
+            <select
+              className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none"
+              style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+              value={bugForm.severity}
+              onChange={e => setBugForm(p => ({ ...p, severity: e.target.value }))}
+            >
+              {['Critical', 'High', 'Medium', 'Low'].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>Description</label>
+            <textarea
+              rows={3}
+              className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none resize-none"
+              style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+              placeholder="Summary of the bug for the developer…"
+              value={bugForm.description}
+              onChange={e => setBugForm(p => ({ ...p, description: e.target.value }))}
+            />
+          </div>
+          <p className="text-xs" style={{ color: 'var(--ds-text-muted)' }}>
+            Reproduction steps, environment, and expected/actual behaviour will be automatically copied from the investigation panel.
+          </p>
+          <div className="flex gap-2 justify-end pt-2">
+            <Button variant="secondary" onClick={() => setBugModalOpen(false)}>Cancel</Button>
+            <Button variant="primary" icon={Bug} isLoading={creatingBug} onClick={handleCreateBug}>Create Bug Report</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── KB Article Modal ─────────────────────────────────────────────────── */}
+      <Modal
+        isOpen={kbModalOpen}
+        onClose={() => setKbModalOpen(false)}
+        title={
+          <div className="flex items-center gap-2">
+            <BookOpen size={18} style={{ color: '#10b981' }} />
+            Create Knowledge Article
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>Article Title <span className="text-red-500">*</span></label>
+            <input
+              className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none"
+              style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+              value={kbForm.title}
+              onChange={e => setKbForm(p => ({ ...p, title: e.target.value }))}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>Category</label>
+              <input
+                className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none"
+                style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+                value={kbForm.category}
+                onChange={e => setKbForm(p => ({ ...p, category: e.target.value }))}
+                placeholder="e.g. Troubleshooting"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>Visibility</label>
+              <select
+                className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none"
+                style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+                value={kbForm.visibility}
+                onChange={e => setKbForm(p => ({ ...p, visibility: e.target.value }))}
+              >
+                <option value="internal">Internal (Staff only)</option>
+                <option value="organization">Organization</option>
+                <option value="public">Public</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ds-text-muted)' }}>Content (optional — auto-generated from ticket)</label>
+            <textarea
+              rows={5}
+              className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none resize-none"
+              style={{ backgroundColor: 'var(--ds-surface)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-primary)' }}
+              placeholder="Leave blank to auto-generate from ticket description, steps, and resolution summary."
+              value={kbForm.content}
+              onChange={e => setKbForm(p => ({ ...p, content: e.target.value }))}
+            />
+          </div>
+          <p className="text-xs" style={{ color: 'var(--ds-text-muted)' }}>
+            Article will be saved as <strong>draft</strong> — review and publish it from the Knowledge Base.
+          </p>
+          <div className="flex gap-2 justify-end pt-2">
+            <Button variant="secondary" onClick={() => setKbModalOpen(false)}>Cancel</Button>
+            <Button variant="primary" icon={BookOpen} isLoading={creatingArticle} onClick={handleCreateArticle}>Create Article</Button>
+          </div>
+        </div>
+      </Modal>
 
     </div>
   )

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getTickets, deleteTicket } from '../services/ticketApi'
 import api from '../services/api'
-import { getUser } from '../services/auth'
+import { useAuth } from '../context/AuthContext'
 import { Filter, AlertCircle, Ticket, Trash2 } from 'lucide-react'
 import PageHeader from '../components/enterprise/PageHeader'
 import FilterBar from '../components/enterprise/FilterBar'
@@ -19,7 +19,7 @@ export default function AdminTickets({ isEngineerOnly = false }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const currentUser = getUser()
+  const { user: currentUser } = useAuth()
   const role = currentUser?.role === 'admin' ? 'admin' : 'support_engineer'
 
   const [deleteId, setDeleteId] = useState(null)

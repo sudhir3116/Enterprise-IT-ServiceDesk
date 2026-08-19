@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import api from '../services/api'
-import { Users, UserPlus, Filter, Download, Trash2, Key, AlertCircle, Upload } from 'lucide-react'
+import { Users, UserPlus, Filter, Download, Trash2, Key, AlertCircle, Upload, Clock } from 'lucide-react'
 import PageHeader from '../components/enterprise/PageHeader'
 import FilterBar from '../components/enterprise/FilterBar'
 import Table from '../components/enterprise/Table'
@@ -165,6 +166,11 @@ export default function AdminUserManagement() {
         primaryAction={<Button variant="primary" onClick={() => setShowForm(true)} icon={UserPlus}>Provision User</Button>}
         secondaryActions={
           <>
+            <Link to="/admin/approvals">
+              <Button variant="primary" style={{ backgroundColor: '#f59e0b' }} icon={Clock}>
+                Pending Approvals
+              </Button>
+            </Link>
             <Button variant="secondary" onClick={() => setShowImport(true)} icon={Upload}>Import</Button>
             <Button variant="secondary" onClick={exportCSV} icon={Download}>Export</Button>
           </>

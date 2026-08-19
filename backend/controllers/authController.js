@@ -55,13 +55,15 @@ const loginUser = async (req, res, next) => {
     const maxAge = isRemembered ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
 
     res.cookie("refreshToken", refreshToken, {
+      path: "/",
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge,
     });
 
     res.status(200).json({
+      success: true,
       message: "Login Successful",
       accessToken,
       user: {
@@ -71,6 +73,15 @@ const loginUser = async (req, res, next) => {
         mobileNumber: user.mobileNumber,
         role: normalizeRole(user.role),
         dbRole: user.role,
+        organizationId: user.organizationId?._id || user.organizationId,
+        organization: user.organizationId ? {
+          id: user.organizationId._id,
+          name: user.organizationId.name,
+          slug: user.organizationId.slug,
+          domain: user.organizationId.domain,
+          plan: user.organizationId.plan,
+          settings: user.organizationId.settings,
+        } : null,
         employeeId: user.employeeId,
         department: user.department,
         designation: user.designation,
@@ -82,7 +93,9 @@ const loginUser = async (req, res, next) => {
   } catch (error) {
     if (error.message.includes("Invalid")) res.status(400);
     if (error.message.includes("not verified")) res.status(403);
-    if (error.message.includes("deactivated")) res.status(403);
+    if (error.message.includes("deactivated") || error.code === "PENDING_APPROVAL" || error.code === "ACCOUNT_REJECTED" || error.code === "ACCOUNT_SUSPENDED" || error.message.includes("pending") || error.message.includes("rejected") || error.message.includes("suspended")) {
+      res.status(403);
+    }
     next(error);
   }
 };
@@ -262,58 +275,123 @@ const updateUserProfile = async (req, res, next) => {
     const user = await User.findById(req.user._id);
 
     if (!user) {
-      res.status(404);
-      throw new Error("User Not Found");
+      return res.status(404).json({ message: "User Not Found" });
+    }
+
+    if (req.body.name !== undefined) {
+      const nameVal = String(req.body.name).trim();
+      if (!nameVal || nameVal.length < 3 || nameVal.length > 50) {
+        return res.status(400).json({ message: "Name must be between 3 and 50 characters long." });
+      }
+      
+      const beforeName = user.name;
+      user.name = nameVal;
+
+      if (req.body.mobileNumber) user.mobileNumber = req.body.mobileNumber;
+      if (req.body.department) user.department = req.body.department;
+      if (req.body.designation) user.designation = req.body.designation;
+
+      const updatedUser = await user.save();
+
+      // Write AuditLog for PROFILE_UPDATED
+      await logAudit({
+        entity: "User",
+        entityId: updatedUser._id,
+        action: "PROFILE_UPDATED",
+        performedBy: req.user._id,
+        details: {
+          changedFields: ["Name"],
+          before: beforeName,
+          after: updatedUser.name
+        }
+      }).catch(() => {});
+
+      return res.status(200).json({
+        success: true,
+        message: "Profile updated successfully.",
+        user: {
+          id: updatedUser._id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          role: normalizeRole(updatedUser.role),
+          dbRole: updatedUser.role,
+          accountStatus: updatedUser.accountStatus,
+          registrationMethod: updatedUser.googleId ? "google" : "password",
+          createdAt: updatedUser.createdAt
+        }
+      });
+    } else {
+      return res.status(400).json({ message: "No valid profile fields provided for update." });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Admin Edit User (Name, Role, Status, Organization)
+const updateUserByAdmin = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, role, accountStatus, organizationId } = req.body;
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User Not Found" });
     }
 
     const before = {
       name: user.name,
-      mobileNumber: user.mobileNumber,
-      department: user.department,
-      designation: user.designation
+      role: user.role,
+      accountStatus: user.accountStatus,
+      organizationId: user.organizationId
     };
 
-    user.name = req.body.name || user.name;
-    user.mobileNumber = req.body.mobileNumber || user.mobileNumber;
-    user.department = req.body.department || user.department;
-    user.designation = req.body.designation || user.designation;
+    if (name) {
+      const nameVal = String(name).trim();
+      if (nameVal.length >= 3 && nameVal.length <= 50) user.name = nameVal;
+    }
 
-    if (req.body.password) {
-      user.password = await bcrypt.hash(req.body.password, 10);
+    if (role) {
+      user.role = mapRoleToDb(role);
+    }
+
+    if (accountStatus) {
+      user.accountStatus = accountStatus;
+      if (accountStatus === "active") user.isApproved = true;
+    }
+
+    if (organizationId) {
+      user.organizationId = organizationId;
     }
 
     const updatedUser = await user.save();
 
-    // Write AuditLog for self profile update
     await logAudit({
       entity: "User",
       entityId: updatedUser._id,
-      action: "Self Updated Profile",
+      action: "ADMIN_USER_UPDATED",
       performedBy: req.user._id,
       before,
       after: {
         name: updatedUser.name,
-        mobileNumber: updatedUser.mobileNumber,
-        department: updatedUser.department,
-        designation: updatedUser.designation
+        role: updatedUser.role,
+        accountStatus: updatedUser.accountStatus,
+        organizationId: updatedUser.organizationId
       }
-    });
+    }).catch(() => {});
 
     res.status(200).json({
-      message: "Profile Updated Successfully",
+      success: true,
+      message: `User ${updatedUser.name} updated successfully by admin.`,
       user: {
         id: updatedUser._id,
         name: updatedUser.name,
         email: updatedUser.email,
-        mobileNumber: updatedUser.mobileNumber,
-        role: updatedUser.role,
-        employeeId: updatedUser.employeeId,
-        department: updatedUser.department,
-        designation: updatedUser.designation,
+        role: normalizeRole(updatedUser.role),
+        dbRole: updatedUser.role,
         accountStatus: updatedUser.accountStatus,
-        lastLogin: updatedUser.lastLogin,
-        createdAt: updatedUser.createdAt,
-      },
+        organizationId: updatedUser.organizationId
+      }
     });
   } catch (error) {
     next(error);
@@ -494,12 +572,13 @@ const resendVerificationEmail = async (req, res, next) => {
 // Get Logged In User Profile — emits normalized role
 const getProfile = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id).select("-password");
+    const user = await User.findById(req.user._id).populate("organizationId").select("-password");
     if (!user) {
       res.status(404);
       throw new Error("User Not Found");
     }
     res.status(200).json({
+      success: true,
       user: {
         id: user._id,
         name: user.name,
@@ -507,6 +586,15 @@ const getProfile = async (req, res, next) => {
         mobileNumber: user.mobileNumber,
         role: normalizeRole(user.role), // normalized for frontend
         dbRole: user.role,
+        organizationId: user.organizationId?._id || user.organizationId,
+        organization: user.organizationId ? {
+          id: user.organizationId._id,
+          name: user.organizationId.name,
+          slug: user.organizationId.slug,
+          domain: user.organizationId.domain,
+          plan: user.organizationId.plan,
+          settings: user.organizationId.settings,
+        } : null,
         employeeId: user.employeeId,
         department: user.department,
         designation: user.designation,
@@ -533,13 +621,14 @@ const refreshToken = async (req, res, next) => {
     const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
 
     res.cookie("refreshToken", newRefreshToken, {
+      path: "/",
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
       maxAge,
     });
 
-    res.status(200).json({ accessToken: newAccessToken });
+    res.status(200).json({ success: true, accessToken: newAccessToken });
   } catch (error) {
     res.status(401);
     next(error);
@@ -556,11 +645,12 @@ const logoutUser = async (req, res, next) => {
       auditService.auth.logout(req.user._id, req.user.email, ipAddress, userAgent);
     }
     res.clearCookie("refreshToken", {
+      path: "/",
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
     });
-    res.status(200).json({ message: "Logged out successfully" });
+    res.status(200).json({ success: true, message: "Logged out successfully" });
   } catch (error) {
     next(error);
   }
@@ -596,20 +686,291 @@ const revokeAllSessions = async (req, res, next) => {
   }
 };
 
+// Get Current Authenticated Session Details (/api/auth/me)
+const getMe = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id).populate("organizationId").select("-password");
+    if (!user) {
+      res.status(401);
+      throw new Error("Not Authorized: User Not Found");
+    }
+
+    if (user.accountStatus === "suspended" || user.accountStatus === "rejected") {
+      res.status(401);
+      throw new Error(`Account access denied: status is ${user.accountStatus}`);
+    }
+
+    const normRole = normalizeRole(user.role);
+    const permissions = [];
+    if (normRole === "admin") {
+      permissions.push("admin:all", "org:manage", "users:manage", "tickets:all", "reports:view");
+    } else if (normRole === "support_engineer") {
+      permissions.push("tickets:assigned", "tickets:update", "comments:internal");
+    } else {
+      permissions.push("tickets:create", "tickets:own");
+    }
+
+    const orgData = user.organizationId ? {
+      id: user.organizationId._id,
+      name: user.organizationId.name,
+      slug: user.organizationId.slug,
+      domain: user.organizationId.domain,
+      plan: user.organizationId.plan,
+      settings: user.organizationId.settings,
+    } : null;
+
+    res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        mobileNumber: user.mobileNumber,
+        role: normRole,
+        dbRole: user.role,
+        employeeId: user.employeeId,
+        department: user.department,
+        designation: user.designation,
+        accountStatus: user.accountStatus,
+        isApproved: user.isApproved !== false,
+        lastLogin: user.lastLogin,
+        createdAt: user.createdAt,
+        isEmailVerified: user.isEmailVerified,
+      },
+      organization: orgData,
+      permissions,
+    });
+  } catch (error) {
+    res.status(401);
+    next(error);
+  }
+};
+
+// Get Account Approval Status (/api/auth/approval-status)
+const getApprovalStatus = async (req, res, next) => {
+  try {
+    let user;
+    if (req.user && req.user._id) {
+      user = await User.findById(req.user._id).populate("organizationId").select("-password");
+    } else if (req.query && req.query.email) {
+      const email = req.query.email.toString().toLowerCase().trim();
+      user = await User.findOne({ email }).populate("organizationId").select("-password");
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: "User Not Found" });
+    }
+
+    const normRole = normalizeRole(user.role);
+    const orgName = user.organizationId?.name || "Your Organization";
+
+    res.status(200).json({
+      status: user.accountStatus,
+      isApproved: !!user.isApproved,
+      role: normRole,
+      dbRole: user.role,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        registrationMethod: user.googleId ? "Google OAuth" : "Email Registration"
+      },
+      organization: {
+        name: orgName,
+        slug: user.organizationId?.slug || null,
+        domain: user.organizationId?.domain || null
+      },
+      requestedAt: user.createdAt,
+      approvedAt: user.approvedAt || null
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get Users Awaiting Admin Approval
+const getPendingUsers = async (req, res, next) => {
+  try {
+    const pendingUsers = await User.find({
+      accountStatus: "pending_approval",
+      isApproved: false
+    }).populate("organizationId", "name slug").select("-password").sort({ createdAt: -1 });
+
+    const normalized = pendingUsers.map(u => {
+      const orgName = u.organizationId?.name || "Organization Pending Assignment";
+      return {
+        ...u.toObject(),
+        name: u.name,
+        email: u.email,
+        registrationMethod: u.googleId || u.authProvider === "google" ? "Google OAuth" : "Email Registration",
+        organization: {
+          id: u.organizationId?._id || null,
+          name: orgName,
+          slug: u.organizationId?.slug || null
+        },
+        organizationName: orgName,
+        createdAt: u.createdAt,
+        status: u.accountStatus,
+        role: normalizeRole(u.role),
+        dbRole: u.role,
+      };
+    });
+
+    res.status(200).json(normalized);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Approve User Account Request
+const approveUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    const user = await User.findById(id).populate("organizationId");
+    if (!user) {
+      res.status(404);
+      throw new Error("User Not Found");
+    }
+
+    const assignedRoleInput = role || user.requestedRole || "customer";
+    const mappedDbRole = mapRoleToDb(assignedRoleInput);
+
+    user.role = mappedDbRole;
+    user.accountStatus = "active";
+    user.isApproved = true;
+    user.approvedBy = req.user._id;
+    user.approvedAt = new Date();
+
+    await user.save();
+
+    await logAudit({
+      entity: "User",
+      entityId: user._id,
+      action: "USER_APPROVED",
+      performedBy: req.user._id,
+      details: { role: normalizeRole(user.role), dbRole: user.role }
+    }).catch(() => {});
+
+    const { sendApprovalEmail } = require("../utils/sendEmail");
+    const orgName = user.organizationId?.name || "Your Organization";
+    await sendApprovalEmail(user, normalizeRole(user.role), orgName).catch(() => {});
+
+    res.status(200).json({
+      message: `User ${user.name} approved successfully as ${normalizeRole(user.role)}`,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: normalizeRole(user.role),
+        dbRole: user.role,
+        accountStatus: user.accountStatus,
+        isApproved: user.isApproved,
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Reject User Account Request
+const rejectUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const user = await User.findById(id);
+    if (!user) {
+      res.status(404);
+      throw new Error("User Not Found");
+    }
+
+    user.accountStatus = "rejected";
+    user.isApproved = false;
+    user.rejectedBy = req.user._id;
+    user.rejectedAt = new Date();
+    user.rejectionReason = reason || "";
+    await user.save();
+
+    await logAudit({
+      entity: "User",
+      entityId: user._id,
+      action: "USER_REJECTED",
+      performedBy: req.user._id,
+      details: { reason: reason || "" }
+    }).catch(() => {});
+
+    const { sendRejectionEmail } = require("../utils/sendEmail");
+    await sendRejectionEmail(user, reason || "").catch(() => {});
+
+    res.status(200).json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        accountStatus: user.accountStatus,
+        isApproved: user.isApproved,
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Delete Registration Request (DELETE /api/users/:id/request)
+const deleteUserRequest = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User Not Found" });
+    }
+
+    if (user.accountStatus !== "pending_approval" && user.role === "admin") {
+      return res.status(403).json({ message: "Administrative safety lock: Administrator accounts cannot be deleted." });
+    }
+
+    await logAudit({
+      entity: "User",
+      entityId: user._id,
+      action: "USER_REQUEST_DELETED",
+      performedBy: req.user._id,
+      details: { email: user.email, name: user.name, status: user.accountStatus }
+    }).catch(() => {});
+
+    await user.deleteOne();
+
+    res.status(200).json({
+      message: `Registration request for ${user.name} permanently deleted.`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   logoutUser,
   refreshToken,
   getAllUsers,
+  getPendingUsers,
+  approveUser,
+  rejectUser,
+  deleteUserRequest,
   createUserByAdmin,
   updateUserRole,
   updateUserProfile,
+  updateUserByAdmin,
   deleteAccount,
   deleteUserByAdmin,
   forgotPassword,
   resetPassword,
   getProfile,
+  getMe,
+  getApprovalStatus,
   getActiveSessions,
   revokeSession,
   revokeAllSessions,

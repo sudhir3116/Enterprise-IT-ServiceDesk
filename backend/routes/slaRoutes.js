@@ -1,15 +1,18 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const slaController = require('../controllers/slaController');
-const { protect, requireRole } = require('../middleware/authMiddleware');
-const auditLogMiddleware = require('../middleware/auditLogMiddleware');
+const {
+  getSlaPolicies,
+  createSlaPolicy,
+  updateSlaPolicy,
+  deleteSlaPolicy,
+  seedDefaultSlaPolicies,
+} = require("../controllers/slaController");
+const { protect, requireRole } = require("../middleware/authMiddleware");
 
-// Only Admins can manage SLAs
-router.use(protect, requireRole('admin'));
-
-router.get('/', slaController.getSLAs);
-router.post('/', auditLogMiddleware('Create SLA'), slaController.createSLA);
-router.put('/:id', auditLogMiddleware('Update SLA'), slaController.updateSLA);
-router.delete('/:id', auditLogMiddleware('Delete SLA'), slaController.deleteSLA);
+router.get("/", protect, getSlaPolicies);
+router.post("/", protect, requireRole("admin"), createSlaPolicy);
+router.post("/seed-defaults", protect, requireRole("admin"), seedDefaultSlaPolicies);
+router.put("/:id", protect, requireRole("admin"), updateSlaPolicy);
+router.delete("/:id", protect, requireRole("admin"), deleteSlaPolicy);
 
 module.exports = router;

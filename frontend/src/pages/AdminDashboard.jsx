@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 import { getStats } from '../services/dashboardApi'
 import { getTickets } from '../services/ticketApi'
-import { getUser } from '../services/auth'
+import { useAuth } from '../context/AuthContext'
 import {
   Users, UserCheck, FileText, Activity as ActivityIcon, AlertCircle, Clock,
   Ticket, Server, Cpu, HardDrive, Database, Shield, BookOpen, Clock4
@@ -24,7 +24,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const currentUser = getUser()
+  const { user: currentUser } = useAuth()
   const role = currentUser?.role === 'admin' ? 'admin' : 'support_engineer'
   const navigate = useNavigate()
 

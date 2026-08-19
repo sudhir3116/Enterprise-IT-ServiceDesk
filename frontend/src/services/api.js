@@ -1,19 +1,32 @@
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8001'
 
 const api = axios.create({
   baseURL: API_BASE + '/api',
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 })
 
-api.defaults.withCredentials = true
+let inMemoryAccessToken = null
 
-// Attach token if present
+export const setAccessToken = (token) => {
+  inMemoryAccessToken = token
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+  } else {
+    delete api.defaults.headers.common['Authorization']
+  }
+}
+
+export const getAccessToken = () => inMemoryAccessToken
+
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  if (inMemoryAccessToken) {
+    config.headers.Authorization = `Bearer ${inMemoryAccessToken}`
+  }
   return config
 })
 
 export default api
+

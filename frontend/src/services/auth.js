@@ -1,24 +1,26 @@
+import { setAccessToken, getAccessToken } from './api'
+
 export function saveToken(token) {
-  localStorage.setItem('token', token)
+  setAccessToken(token)
 }
 
 export function getToken() {
-  return localStorage.getItem('token')
+  return getAccessToken()
 }
 
 export function clearToken() {
-  localStorage.removeItem('token')
+  setAccessToken(null)
 }
 
 export function saveUser(user) {
-  localStorage.setItem('user', JSON.stringify(user))
+  // User state is managed in-memory by AuthContext
 }
 
 export function getUser() {
-  const raw = localStorage.getItem('user')
-  return raw ? JSON.parse(raw) : null
+  return null
 }
 
 export function clearUser() {
-  localStorage.removeItem('user')
+  // User state is managed in-memory by AuthContext
 }
+

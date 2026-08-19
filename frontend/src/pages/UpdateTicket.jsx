@@ -5,8 +5,7 @@ import {
   Activity, Tag, Trash2, CheckCircle2, AlertTriangle, Lock, Unlock, 
   Send, UserCheck, RefreshCw, FileText
 } from 'lucide-react'
-import api from '../services/api'
-import { getUser } from '../services/auth'
+import { useAuth } from '../context/AuthContext'
 import Button from '../components/enterprise/Button'
 import Badge from '../components/enterprise/Badge'
 import Card from '../components/enterprise/Card'
@@ -17,9 +16,9 @@ export default function UpdateTicket() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { addToast } = useToast()
+  const { user: currentUser } = useAuth()
   
-  const currentUser = getUser()
-  const role = currentUser?.role || 'employee'
+  const role = currentUser?.role || 'customer'
   const isStaff = ['admin', 'support_engineer', 'agent'].includes(role)
   const currentUserId = currentUser?._id || currentUser?.id
 
@@ -289,6 +288,9 @@ export default function UpdateTicket() {
               <Badge color={getStatusColor(ticket.status)} dot>{ticket.status}</Badge>
               <Badge color={getPriorityColor(ticket.priority)}>{ticket.priority} Priority</Badge>
               <Badge color={CAT_COLORS[ticket.category] || 'gray'}>{ticket.category}</Badge>
+              <Badge color={ticket.source === 'email' ? 'purple' : 'blue'}>
+                Source: {ticket.source ? ticket.source.toUpperCase() : 'WEB'}
+              </Badge>
             </div>
             
             <h1 className="text-[24px] font-bold text-primary font-heading tracking-tight mt-1 leading-tight">

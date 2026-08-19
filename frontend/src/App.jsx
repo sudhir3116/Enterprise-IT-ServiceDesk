@@ -19,6 +19,8 @@ import VerifyEmail from './pages/VerifyEmail'
 import NotFound from './pages/NotFound'
 import Unauthorized from './pages/Unauthorized'
 import OAuthCallback from './pages/OAuthCallback'
+import PendingApproval from './pages/PendingApproval'
+import AdminPendingApprovals from './pages/AdminPendingApprovals'
 
 const EmployeeDashboard = lazy(() => import('./pages/EmployeeDashboard'))
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
@@ -36,6 +38,7 @@ import AdminRoles from './pages/AdminRoles'
 import AdminCategories from './pages/AdminCategories'
 import AdminSLA from './pages/AdminSLA'
 const AdminSettings = lazy(() => import('./pages/AdminSettings'))
+import AdminEmailSettings from './pages/AdminEmailSettings'
 import AdminNotifications from './pages/AdminNotifications'
 import CreateTicket from './pages/CreateTicket'
 import MyTickets from './pages/MyTickets'
@@ -45,6 +48,12 @@ import AdminUserManagement from './pages/AdminUserManagement'
 import AuditLogs from './pages/AuditLogs'
 import SelfService from './pages/SelfService'
 const KnowledgeBase = lazy(() => import('./pages/KnowledgeBase'))
+
+// Module 8 — Bug Investigation & Product Feedback
+import EngineerBugInvestigation from './pages/EngineerBugInvestigation'
+import DeveloperBugDashboard from './pages/DeveloperBugDashboard'
+import FeatureRequest from './pages/FeatureRequest'
+import ProductFeedbackManagement from './pages/ProductFeedbackManagement'
 
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './context/AuthContext'
@@ -95,75 +104,123 @@ function AppRouter() {
     )
   }
 
-  const role = user?.role || 'employee'
+  const role = user?.role || 'customer'
 
   return (
     <>
       <Routes>
         {/* ── Auth Routes (no sidebar/header) ────────────────── */}
         <Route element={<AuthLayout />}>
-          <Route path="/login"          element={user ? <Navigate to={getDashboardPath(role)} replace /> : <Login />} />
-          <Route path="/register"       element={user ? <Navigate to={getDashboardPath(role)} replace /> : <Register />} />
-          <Route path="/forgot-password"element={user ? <Navigate to={getDashboardPath(role)} replace /> : <ForgotPassword />} />
+          <Route path="/login" element={user ? <Navigate to={getDashboardPath(role)} replace /> : <Login />} />
+          <Route path="/register" element={user ? <Navigate to={getDashboardPath(role)} replace /> : <Register />} />
+          <Route path="/forgot-password" element={user ? <Navigate to={getDashboardPath(role)} replace /> : <ForgotPassword />} />
           <Route path="/reset-password" element={user ? <Navigate to={getDashboardPath(role)} replace /> : <ResetPassword />} />
-          <Route path="/verify-email"   element={<VerifyEmail />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/oauth-callback" element={<OAuthCallback />} />
         </Route>
 
-        {/* ── Error pages (no sidebar) ───────────────────────── */}
-        <Route path="/404"          element={<NotFound />} />
+        {/* ── Error & Standalone pages (no sidebar) ─────────────── */}
+        <Route path="/404" element={<NotFound />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
+        <Route path="/pending-approval" element={<PendingApproval />} />
 
         {/* ── Authenticated Dashboard Routes ─────────────────── */}
-        
+
         {/* Admin Routes (Enterprise Layout) */}
-        <Route element={<ErrorBoundary><EnterpriseLayout /></ErrorBoundary>}>
-          <Route path="/admin/dashboard"  element={<ProtectedRoute><RoleRoute role="admin"><AdminDashboard /></RoleRoute></ProtectedRoute>} />
-          <Route path="/admin/users"      element={<ProtectedRoute><RoleRoute role="admin"><AdminUserManagement /></RoleRoute></ProtectedRoute>} />
-          <Route path="/admin/audit-logs" element={<ProtectedRoute><RoleRoute role="admin"><AuditLogs /></RoleRoute></ProtectedRoute>} />
-          <Route path="/admin/tickets"    element={<ProtectedRoute><RoleRoute role="admin"><AdminTickets /></RoleRoute></ProtectedRoute>} />
-          <Route path="/admin/engineers"  element={<ProtectedRoute><RoleRoute role="admin"><AdminEngineers /></RoleRoute></ProtectedRoute>} />
-          <Route path="/admin/reports"    element={<ProtectedRoute><RoleRoute role="admin"><AdminReports /></RoleRoute></ProtectedRoute>} />
-          <Route path="/admin/departments" element={<ProtectedRoute><RoleRoute role="admin"><AdminDepartments /></RoleRoute></ProtectedRoute>} />
-          <Route path="/admin/roles"      element={<ProtectedRoute><RoleRoute role="admin"><AdminRoles /></RoleRoute></ProtectedRoute>} />
-          <Route path="/admin/categories" element={<ProtectedRoute><RoleRoute role="admin"><AdminCategories /></RoleRoute></ProtectedRoute>} />
-          <Route path="/admin/slas"       element={<ProtectedRoute><RoleRoute role="admin"><AdminSLA /></RoleRoute></ProtectedRoute>} />
-          <Route path="/admin/notifications" element={<ProtectedRoute><RoleRoute role="admin"><AdminNotifications /></RoleRoute></ProtectedRoute>} />
-          <Route path="/admin/settings"   element={<ProtectedRoute><RoleRoute role="admin"><AdminSettings /></RoleRoute></ProtectedRoute>} />
-          <Route path="/knowledge-base" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
+        <Route element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <ErrorBoundary>
+              <EnterpriseLayout />
+            </ErrorBoundary>
+          </ProtectedRoute>
+        }>
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/approvals" element={<AdminPendingApprovals />} />
+          <Route path="/admin/users" element={<AdminUserManagement />} />
+          <Route path="/admin/audit-logs" element={<AuditLogs />} />
+          <Route path="/admin/tickets" element={<AdminTickets />} />
+          <Route path="/admin/engineers" element={<AdminEngineers />} />
+          <Route path="/admin/reports" element={<AdminReports />} />
+          <Route path="/admin/departments" element={<AdminDepartments />} />
+          <Route path="/admin/roles" element={<AdminRoles />} />
+          <Route path="/admin/categories" element={<AdminCategories />} />
+          <Route path="/admin/slas" element={<AdminSLA />} />
+          <Route path="/admin/notifications" element={<AdminNotifications />} />
+          <Route path="/admin/settings" element={<AdminSettings />} />
+          <Route path="/admin/email-settings" element={<AdminEmailSettings />} />
+          <Route path="/knowledge-base" element={<KnowledgeBase />} />
+          {/* Module 8 */}
+          <Route path="/admin/bugs" element={<EngineerBugInvestigation />} />
+          <Route path="/admin/feedback" element={<ProductFeedbackManagement />} />
         </Route>
 
-        {/* Employee & Engineer Routes (Legacy Layout) */}
-        <Route element={<ErrorBoundary><DashboardLayout /></ErrorBoundary>}>
-          {/* Employee */}
-          <Route path="/employee/dashboard"   element={<ProtectedRoute><RoleRoute role="employee"><EmployeeDashboard /></RoleRoute></ProtectedRoute>} />
-          <Route path="/employee/create-ticket" element={<ProtectedRoute><RoleRoute role="employee"><CreateTicket /></RoleRoute></ProtectedRoute>} />
-          <Route path="/employee/my-tickets"  element={<ProtectedRoute><RoleRoute role="employee"><MyTickets /></RoleRoute></ProtectedRoute>} />
-          <Route path="/employee/ticket/:id"  element={<ProtectedRoute><RoleRoute role="employee"><UpdateTicket /></RoleRoute></ProtectedRoute>} />
-          <Route path="/employee/knowledge-base" element={<ProtectedRoute><RoleRoute role="employee"><KnowledgeBase /></RoleRoute></ProtectedRoute>} />
-          <Route path="/employee/notifications" element={<ProtectedRoute><RoleRoute role="employee"><EmployeeNotifications /></RoleRoute></ProtectedRoute>} />
-          <Route path="/employee/self-service"element={<ProtectedRoute><RoleRoute role="employee"><SelfService /></RoleRoute></ProtectedRoute>} />
-          <Route path="/employee/profile"     element={<ProtectedRoute><RoleRoute role="employee"><Profile /></RoleRoute></ProtectedRoute>} />
+        {/* Employee / Customer Routes (Legacy Layout) */}
+        <Route element={
+          <ProtectedRoute allowedRoles={["customer", "employee", "requester"]}>
+            <ErrorBoundary>
+              <DashboardLayout />
+            </ErrorBoundary>
+          </ProtectedRoute>
+        }>
+          <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
+          <Route path="/employee/create-ticket" element={<CreateTicket />} />
+          <Route path="/employee/my-tickets" element={<MyTickets />} />
+          <Route path="/employee/ticket/:id" element={<UpdateTicket />} />
+          <Route path="/employee/knowledge-base" element={<KnowledgeBase />} />
+          <Route path="/employee/notifications" element={<EmployeeNotifications />} />
+          <Route path="/employee/self-service" element={<SelfService />} />
+          <Route path="/employee/profile" element={<Profile />} />
+          {/* Module 8 */}
+          <Route path="/employee/feedback" element={<FeatureRequest />} />
+        </Route>
 
-          {/* Support Engineer */}
-          <Route path="/engineer/dashboard" element={<ProtectedRoute><RoleRoute role="support_engineer"><EngineerDashboard /></RoleRoute></ProtectedRoute>} />
-          <Route path="/engineer/assigned"  element={<ProtectedRoute><RoleRoute role="support_engineer"><EngineerTickets /></RoleRoute></ProtectedRoute>} />
-          <Route path="/engineer/ticket/:id"element={<ProtectedRoute><RoleRoute role="support_engineer"><EngineerTicketDetails /></RoleRoute></ProtectedRoute>} />
-          <Route path="/engineer/profile"   element={<ProtectedRoute><RoleRoute role="support_engineer"><EngineerProfile /></RoleRoute></ProtectedRoute>} />
-          <Route path="/engineer/notifications" element={<ProtectedRoute><RoleRoute role="support_engineer"><EngineerNotifications /></RoleRoute></ProtectedRoute>} />
+        {/* Support Engineer Routes (Legacy Layout) */}
+        <Route element={
+          <ProtectedRoute allowedRoles={["support_engineer", "agent"]}>
+            <ErrorBoundary>
+              <DashboardLayout />
+            </ErrorBoundary>
+          </ProtectedRoute>
+        }>
+          <Route path="/engineer/dashboard" element={<EngineerDashboard />} />
+          <Route path="/engineer/assigned" element={<EngineerTickets />} />
+          <Route path="/engineer/ticket/:id" element={<EngineerTicketDetails />} />
+          <Route path="/engineer/profile" element={<EngineerProfile />} />
+          <Route path="/engineer/notifications" element={<EngineerNotifications />} />
+          {/* Module 8 */}
+          <Route path="/engineer/bugs" element={<EngineerBugInvestigation />} />
+        </Route>
 
-          {/* Shared Routes (Employee context) */}
-          <Route path="/ticket/:id" element={<ProtectedRoute><UpdateTicket /></ProtectedRoute>} />
+        {/* Module 8: Developer Routes */}
+        <Route element={
+          <ProtectedRoute allowedRoles={["developer"]}>
+            <ErrorBoundary>
+              <DashboardLayout />
+            </ErrorBoundary>
+          </ProtectedRoute>
+        }>
+          <Route path="/developer/bugs" element={<DeveloperBugDashboard />} />
+        </Route>
+
+        {/* Shared Routes */}
+        <Route element={
+          <ProtectedRoute>
+            <ErrorBoundary>
+              <DashboardLayout />
+            </ErrorBoundary>
+          </ProtectedRoute>
+        }>
+          <Route path="/ticket/:id" element={<UpdateTicket />} />
         </Route>
 
         {/* ── Short redirects ────────────────────────────────── */}
         <Route path="/create-ticket" element={<Navigate to="/employee/create-ticket" replace />} />
-        <Route path="/my-tickets"    element={<Navigate to="/employee/my-tickets" replace />} />
-        <Route path="/profile"       element={<Navigate to={user ? getSettingsPath(role) : '/login'} replace />} />
-        <Route path="/admin"         element={<Navigate to="/login" replace />} />
-        <Route path="/employee"      element={<Navigate to="/login" replace />} />
-        <Route path="/"              element={<Navigate to="/login" replace />} />
-        <Route path="*"              element={<Navigate to="/404" replace />} />
+        <Route path="/my-tickets" element={<Navigate to="/employee/my-tickets" replace />} />
+        <Route path="/profile" element={<Navigate to={user ? getSettingsPath(role) : '/login'} replace />} />
+        <Route path="/admin" element={<Navigate to="/login" replace />} />
+        <Route path="/employee" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
     </>
   )

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { BookOpen, Search, Plus, Tag, ChevronRight, Pencil, Trash2, AlertCircle, X, Save } from 'lucide-react'
 import { getArticles, createArticle, updateArticle, deleteArticle } from '../services/kbApi'
-import { getUser } from '../services/auth'
+import { useAuth } from '../context/AuthContext'
 import Skeleton from '../components/enterprise/SkeletonLoader'
 import PageHeader from '../components/enterprise/PageHeader'
 import Button from '../components/enterprise/Button'
@@ -148,7 +148,7 @@ function ArticleView({ article, onClose, onEdit, onDeleteRequest, isAdmin }) {
 // ── Main KB Page ───────────────────────────────────────────────────────────
 export default function KnowledgeBase() {
   const navigate  = useNavigate()
-  const user      = getUser()
+  const { user }  = useAuth()
   const isAdmin   = user?.role === 'admin'
   const { addToast } = useToast()
 

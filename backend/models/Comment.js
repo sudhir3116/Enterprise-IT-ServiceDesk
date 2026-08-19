@@ -23,6 +23,12 @@ const commentSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    type: {
+      type: String,
+      enum: ["public_reply", "internal_note", "system_update"],
+      default: "public_reply",
+      index: true,
+    },
   },
   {
     timestamps: true,

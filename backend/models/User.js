@@ -39,15 +39,54 @@ const userSchema = new mongoose.Schema(
       sparse: true,
     },
 
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      index: true,
+    },
+
     role: {
       type: String,
-      enum: ["requester", "agent", "admin"],
-      default: "requester",
+      enum: ["pending", "customer", "support_engineer", "developer", "admin", "requester", "agent", "employee"],
+      default: "pending",
+    },
+
+    roleRequestedByUser: {
+      type: Boolean,
+      default: false,
     },
 
     team: {
       type: String,
       default: "General",
+    },
+
+    skills: [
+      {
+        type: String,
+        enum: ["General", "Hardware", "Software", "Network", "Security", "Access", "Database", "Other"],
+      },
+    ],
+
+    currentWorkload: {
+      type: Number,
+      default: 0,
+    },
+
+    currentTicketCount: {
+      type: Number,
+      default: 0,
+    },
+
+    availability: {
+      type: String,
+      enum: ["available", "busy", "offline"],
+      default: "available",
+    },
+
+    maxCapacity: {
+      type: Number,
+      default: 10,
     },
 
     isEmailVerified: {
@@ -82,8 +121,33 @@ const userSchema = new mongoose.Schema(
 
     accountStatus: {
       type: String,
-      enum: ["active", "inactive"],
-      default: "active",
+      enum: ["pending_approval", "active", "rejected", "suspended", "inactive"],
+      default: "pending_approval",
+    },
+
+    isApproved: {
+      type: Boolean,
+      default: false,
+    },
+
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    approvedAt: {
+      type: Date,
+    },
+
+    requestedRole: {
+      type: String,
+      default: null,
+    },
+
+    registrationMethod: {
+      type: String,
+      enum: ["google", "password", "local"],
+      default: "password",
     },
 
     lastLogin: {

@@ -3,7 +3,8 @@ import { Link, useLocation } from 'react-router-dom'
 import { 
   Home, PlusCircle, Ticket, Bot, Users, Wrench, BarChart, 
   ShieldCheck, Settings, LayoutDashboard, BookOpen, 
-  ChevronsLeft, ChevronsRight, Building2, Shield, FolderTree, Clock, BellRing, User
+  ChevronsLeft, ChevronsRight, Building2, Shield, FolderTree, Clock, BellRing, User, UserCheck, Mail,
+  Bug, Lightbulb
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -74,7 +75,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
           >
             <LayoutDashboard className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="text-[14px] font-bold font-heading tracking-tight whitespace-nowrap" style={{ color: 'var(--ds-sidebar-text-hover)' }}>ITSM Desk</span>
+          <span className="text-[14px] font-bold font-heading tracking-tight whitespace-nowrap" style={{ color: 'var(--ds-sidebar-text-hover)' }}>Product Support Portal</span>
         </div>
         
         {collapsed && (
@@ -102,7 +103,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
       <nav className="flex-1 overflow-y-auto p-2 scrollbar-hide">
         <SectionLabel>Workspace</SectionLabel>
         
-        {role === 'employee' ? (
+        {['customer', 'employee', 'requester'].includes(role) ? (
           <>
             <NavItem to="/employee/dashboard" exact icon={Home} label="Dashboard" />
             <NavItem to="/employee/create-ticket" icon={PlusCircle} label="Create Ticket" />
@@ -116,27 +117,39 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
             <NavItem to="/admin/reports" icon={BarChart} label="Analytics" />
             <NavItem to="/admin/notifications" icon={BellRing} label="Broadcasts" />
             <NavItem to="/knowledge-base" icon={BookOpen} label="Knowledge Base" />
+            <SectionLabel>Development</SectionLabel>
+            <NavItem to="/admin/bugs" icon={Bug} label="Bug Reports" />
+            <NavItem to="/admin/feedback" icon={Lightbulb} label="Product Feedback" />
             <SectionLabel>Configuration</SectionLabel>
+            <NavItem to="/admin/approvals" icon={UserCheck} label="User Approvals" />
             <NavItem to="/admin/users" icon={Users} label="User Directory" />
             <NavItem to="/admin/engineers" icon={Wrench} label="Engineers" />
             <NavItem to="/admin/departments" icon={Building2} label="Departments" />
             <NavItem to="/admin/roles" icon={Shield} label="System Roles" />
             <NavItem to="/admin/categories" icon={FolderTree} label="Categories" />
             <NavItem to="/admin/slas" icon={Clock} label="SLA Policies" />
+            <NavItem to="/admin/email-settings" icon={Mail} label="Email Integration" />
             <NavItem to="/admin/audit-logs" icon={ShieldCheck} label="Audit Logs" />
+          </>
+        ) : role === 'developer' ? (
+          <>
+            <NavItem to="/developer/bugs" exact icon={Bug} label="My Bug Queue" />
+            <NavItem to="/knowledge-base" icon={BookOpen} label="Knowledge Base" />
           </>
         ) : (
           <>
             <NavItem to="/engineer/dashboard" exact icon={Home} label="Dashboard" />
             <NavItem to="/engineer/assigned" icon={Ticket} label="Assigned Tickets" />
+            <NavItem to="/engineer/bugs" icon={Bug} label="Bug Reports" />
             <NavItem to="/knowledge-base" icon={BookOpen} label="Knowledge Base" />
             <NavItem to="/engineer/profile" icon={User} label="My Profile" />
           </>
         )}
 
         <SectionLabel>System</SectionLabel>
-        {role === 'employee' && (
+        {['customer', 'employee', 'requester'].includes(role) && (
           <>
+            <NavItem to="/employee/feedback" icon={Lightbulb} label="Feature Requests" />
             <NavItem to="/employee/notifications" icon={BellRing} label="Notifications" />
             <NavItem to="/employee/profile" icon={User} label="My Profile" />
           </>

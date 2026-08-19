@@ -39,8 +39,15 @@ connectDB().then(async () => {
   }));
 
   // Middleware
+  const clientUrls = (process.env.CLIENT_URL || "http://localhost:5173").split(",").map(u => u.trim());
   app.use(cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin || clientUrls.includes(origin) || process.env.NODE_ENV !== "production") {
+        callback(null, true);
+      } else {
+        callback(null, true);
+      }
+    },
     credentials: true
   }));
   app.use(express.json());
@@ -50,6 +57,17 @@ connectDB().then(async () => {
   const passport = require("passport");
   app.use(passport.initialize());
 
+  // Mount API Documentation (/api-docs)
+  const setupSwagger = require("./config/swagger");
+  setupSwagger(app);
+
+  // Winston HTTP Logger Middleware
+  const logger = require("./utils/logger");
+  app.use((req, res, next) => {
+    logger.info(`${req.method} ${req.originalUrl} - IP: ${req.ip}`);
+    next();
+  });
+
   const limiter = rateLimit({
     windowMs: sessionTimeoutMinutes * 60 * 1000,
     max: 200, // limit each IP to 200 requests per windowMs
@@ -57,13 +75,25 @@ connectDB().then(async () => {
   });
   app.use("/api", limiter);
   
+  // Health Check Endpoint
+  app.get("/api/health", (req, res) => {
+    res.status(200).json({
+      status: "ok",
+      environment: process.env.NODE_ENV || "development",
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   app.get("/", (req, res) => {
-    res.send("Employee IT Helpdesk API Running...");
+    res.json({ message: "Product Support Portal Enterprise API Running", docs: "/api-docs", health: "/api/health" });
   });
 
   // Routes
   app.use("/api/auth", authRoutes);
   app.use("/api/auth", oauthRoutes);  // SSO: Google & Microsoft
+  app.use("/api/organization", require("./routes/organizationRoutes"));
+  app.use("/api/organizations", require("./routes/organizationRoutes"));
   app.use("/api/tickets", ticketRoutes);
   app.use("/api/dashboard", dashboardRoutes);
   app.use("/api/notifications", require("./routes/notificationRoutes"));
@@ -71,12 +101,22 @@ connectDB().then(async () => {
   app.use("/api/audit-logs", require("./routes/auditLogRoutes"));
   app.use("/api/self-service", require("./routes/selfServiceRoutes"));
   app.use("/api/kb", require("./routes/kbRoutes"));
+  app.use("/api/articles", require("./routes/kbRoutes"));
+  app.use("/api/ai", require("./routes/aiRoutes"));
   app.use("/api/search", require("./routes/searchRoutes"));
   app.use("/api/departments", require("./routes/departmentRoutes"));
   app.use("/api/roles", require("./routes/roleRoutes"));
   app.use("/api/categories", require("./routes/categoryRoutes"));
   app.use("/api/slas", require("./routes/slaRoutes"));
+  app.use("/api/automations", require("./routes/automationRoutes"));
+  app.use("/api/analytics", require("./routes/analyticsRoutes"));
+  app.use("/api/reports", require("./routes/analyticsRoutes"));
+  app.use("/api/email", require("./routes/emailRoutes"));
   app.use("/api/settings", require("./routes/settingsRoutes"));
+
+  // Module 8 — Bug Investigation & Product Feedback
+  app.use("/api/bugs",     require("./routes/bugRoutes"));
+  app.use("/api/feedback", require("./routes/feedbackRoutes"));
 
   // Global Error Handler Middleware
   app.use(errorHandler);
@@ -87,5 +127,7 @@ connectDB().then(async () => {
   // Start Server
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    const { startSlaMonitor } = require("./jobs/slaMonitor");
+    startSlaMonitor();
   });
 });

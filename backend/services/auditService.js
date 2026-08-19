@@ -10,7 +10,7 @@
  *  6. Extensible — event map drives category + severity automatically
  */
 
-const { v4: uuidv4 } = require("uuid");
+const { randomUUID: uuidv4 } = require("crypto");
 const UAParser = require("ua-parser-js");
 const AuditLog = require("../models/AuditLog");
 

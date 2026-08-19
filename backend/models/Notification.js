@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const notificationSchema = new mongoose.Schema(
   {
-    recipient: {
+    userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -16,10 +16,14 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    type: {
+      type: String,
+      enum: ["ticket_created", "ticket_assigned", "sla_warning", "sla_breached", "ticket_resolved", "general"],
+      default: "general",
+    },
     read: {
       type: Boolean,
       default: false,
-      index: true,
     },
     ticketId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -31,6 +35,6 @@ const notificationSchema = new mongoose.Schema(
   }
 );
 
-notificationSchema.index({ recipient: 1, read: 1, createdAt: -1 });
+notificationSchema.index({ userId: 1, read: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Notification", notificationSchema);

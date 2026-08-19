@@ -49,19 +49,30 @@ if (isConfigured(process.env.GOOGLE_CLIENT_ID) && isConfigured(process.env.GOOGL
           }
 
           if (!user) {
-            // 3. Auto-provision a new account for this Google identity
+            // 3. Auto-provision a new account for this Google identity awaiting admin approval
+            const Organization = require("../models/Organization");
+            let defaultOrg = await Organization.findOne();
+
             user = await User.create({
               name,
-              email,
+              email: email ? email.toLowerCase().trim() : email,
               googleId: profile.id,
               authProvider: "google",
-              role: "requester",
+              registrationMethod: "google",
+              role: "pending",
+              requestedRole: null,
+              roleRequestedByUser: false,
+              accountStatus: "pending_approval",
+              isApproved: false,
               isEmailVerified: true, // Google is the identity authority
+              organizationId: defaultOrg ? defaultOrg._id : null,
               department: "General",
               designation: "Staff",
               employeeId: "EMP-" + Math.floor(100000 + Math.random() * 90000),
               mobileNumber: "Not Provided",
             });
+
+            console.log("NEW PENDING USER CREATED:", user._id, user.email);
           }
 
           return done(null, user);

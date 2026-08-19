@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const Organization = require("../models/Organization");
 const Ticket = require("../models/Ticket");
 const bcrypt = require("bcryptjs");
 const sendEmail = require("../utils/sendEmail");
@@ -32,7 +33,8 @@ class AuthService {
   }
 
   generateRefreshToken(id, timeoutDays = 7) {
-    return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET || "myrefreshsecretkey", { expiresIn: `${timeoutDays}d` });
+    const jti = crypto.randomBytes(16).toString("hex");
+    return jwt.sign({ id, jti }, process.env.JWT_REFRESH_SECRET || "myrefreshsecretkey", { expiresIn: `${timeoutDays}d` });
   }
 
   async getSessionTimeout() {
@@ -54,7 +56,11 @@ class AuthService {
       email,
       mobileNumber,
       password: hashedPassword,
-      role: "requester",
+      role: "pending",
+      requestedRole: null,
+      roleRequestedByUser: false,
+      accountStatus: "pending_approval",
+      isApproved: false,
       department: department || "General",
       designation: designation || "Staff",
       employeeId: "EMP-" + Math.floor(100000 + Math.random() * 90000),
@@ -140,54 +146,50 @@ class AuthService {
   }
 
   async loginUser(email, password, userAgent, ipAddress = "", rememberMe = false) {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).populate("organizationId");
     if (!user) {
       // Fire-and-forget: LOGIN_FAILED — unknown email
       auditService.auth.loginFailed(email, ipAddress, userAgent, "User not found");
       throw new Error("Invalid email or password.");
     }
 
-    if (user.accountStatus === "inactive") {
-      auditService.auth.loginFailed(user.email, ipAddress, userAgent, "Account deactivated");
-      throw new Error("Account deactivated. Contact support.");
-    }
-
-    // Check if account is locked
-    if (user.lockUntil && user.lockUntil > Date.now()) {
-      const remainingTime = Math.ceil((user.lockUntil - Date.now()) / 60000);
-      auditService.auth.loginFailed(user.email, ipAddress, userAgent, "Account locked", user.failedLoginAttempts);
-      throw new Error(`Account temporarily locked due to failed attempts. Try again in ${remainingTime} minutes.`);
-    }
-
+    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       // Password mismatch
       user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
 
-      // Lock account if failed attempts exceed 5
       if (user.failedLoginAttempts >= 5) {
-        user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes lockout
+        user.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
         await user.save();
-
-        // Structured audit: ACCOUNT_LOCKED (severity: CRITICAL)
         auditService.auth.accountLocked(
           user._id, user.email, ipAddress, userAgent,
           new Date(Date.now() + 15 * 60 * 1000)
         );
-
         throw new Error("Account locked due to consecutive failed attempts. Try again in 15 minutes.");
       }
 
       await user.save();
-
-      // Structured audit: LOGIN_FAILED with attempt count
       auditService.auth.loginFailed(
         user.email, ipAddress, userAgent,
         "Incorrect password",
         user.failedLoginAttempts
       );
-
       throw new Error(`Invalid email or password. Attempt ${user.failedLoginAttempts} of 5 before lockout.`);
+    }
+
+    if (user.accountStatus === "rejected") {
+      auditService.auth.loginFailed(user.email, ipAddress, userAgent, "Account rejected");
+      const err = new Error("Your account request was rejected by an administrator.");
+      err.code = "ACCOUNT_REJECTED";
+      throw err;
+    }
+
+    if (user.accountStatus === "suspended" || user.accountStatus === "inactive") {
+      auditService.auth.loginFailed(user.email, ipAddress, userAgent, "Account suspended");
+      const err = new Error("Your account has been suspended by an administrator.");
+      err.code = "ACCOUNT_SUSPENDED";
+      throw err;
     }
 
     // Success login: reset lockout counters
@@ -203,64 +205,98 @@ class AuthService {
 
     const accessToken = this.generateAccessToken(user._id, timeout);
     const durationDays = rememberMe ? 30 : 1;
-    const refreshToken = this.generateRefreshToken(user._id, durationDays);
-
     const deviceInfo = this.getDeviceInfo(userAgent);
-    const tokenHash = this.hashToken(refreshToken);
 
-    const session = await Session.create({
-      userId: user._id,
-      tokenHash,
-      deviceInformation: deviceInfo,
-      ipAddress,
-      userAgent,
-      expiresAt: new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000),
-      rememberMe,
-    });
+    let refreshToken;
+    let tokenHash;
+    let createdSession = null;
+    let attempts = 0;
+
+    while (!createdSession && attempts < 3) {
+      attempts++;
+      refreshToken = this.generateRefreshToken(user._id, durationDays);
+      tokenHash = this.hashToken(refreshToken);
+
+      try {
+        createdSession = await Session.create({
+          userId: user._id,
+          tokenHash,
+          deviceInformation: deviceInfo,
+          ipAddress,
+          userAgent,
+          expiresAt: new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000),
+          rememberMe,
+        });
+      } catch (err) {
+        if (err.code === 11000 && attempts < 3) {
+          console.warn(`[AuthService] Collision on tokenHash detected during login (attempt ${attempts}), retrying with fresh entropy...`);
+          continue;
+        }
+        throw err;
+      }
+    }
 
     // Structured audit: SESSION_CREATED
     auditService.auth.sessionCreated(user._id, user.email, ipAddress, userAgent, rememberMe);
+
+    console.log("REFRESH TOKEN CREATED", refreshToken);
+    console.log("HASH STORED", tokenHash);
 
     return { user, accessToken, refreshToken, rememberMe };
   }
 
   async refreshToken(rToken, userAgent, ipAddress = "") {
+    console.log("COOKIE RECEIVED", rToken);
     if (!rToken) throw new Error("No refresh token provided.");
     const decoded = jwt.verify(rToken, process.env.JWT_REFRESH_SECRET || "myrefreshsecretkey");
     const user = await User.findById(decoded.id);
     if (!user) throw new Error("User not found.");
 
     const tokenHash = this.hashToken(rToken);
-    const session = await Session.findOne({ tokenHash, userId: user._id });
+    console.log("HASH SEARCHED", tokenHash);
+    
+    // Atomically find and consume the active session to prevent concurrent race conditions
+    const session = await Session.findOneAndDelete({ tokenHash, userId: user._id });
+    console.log("SESSION FOUND", !!session);
 
     if (!session || session.revokedAt) {
-      // Token Reuse Detection: Force logout on all devices if reuse detected
-      await Session.deleteMany({ userId: user._id });
-      throw new Error("Invalid refresh token. All sessions revoked for security.");
+      throw new Error("Invalid or expired refresh token.");
     }
 
     const rememberMe = session.rememberMe || false;
-
-    // Rotate token: Delete the used session
-    await Session.deleteOne({ _id: session._id });
-
     const timeout = await this.getSessionTimeout();
     const newAccessToken = this.generateAccessToken(user._id, timeout);
     const durationDays = rememberMe ? 30 : 1;
-    const newRefreshToken = this.generateRefreshToken(user._id, durationDays);
-
     const deviceInfo = this.getDeviceInfo(userAgent);
-    const newHash = this.hashToken(newRefreshToken);
 
-    await Session.create({
-      userId: user._id,
-      tokenHash: newHash,
-      deviceInformation: deviceInfo,
-      ipAddress,
-      userAgent,
-      expiresAt: new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000),
-      rememberMe,
-    });
+    let newRefreshToken;
+    let newHash;
+    let createdSession = null;
+    let attempts = 0;
+
+    while (!createdSession && attempts < 3) {
+      attempts++;
+      newRefreshToken = this.generateRefreshToken(user._id, durationDays);
+      newHash = this.hashToken(newRefreshToken);
+
+      try {
+        createdSession = await Session.create({
+          userId: user._id,
+          tokenHash: newHash,
+          deviceInformation: deviceInfo,
+          ipAddress,
+          userAgent,
+          expiresAt: new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000),
+          rememberMe,
+        });
+      } catch (err) {
+        if (err.code === 11000 && attempts < 3) {
+          console.warn(`[AuthService] Collision on tokenHash detected during refresh (attempt ${attempts}), retrying with fresh entropy...`);
+          continue;
+        }
+        throw err;
+      }
+    }
 
     // Structured audit: TOKEN_REFRESHED
     auditService.auth.tokenRefreshed(user._id, user.email, ipAddress, userAgent);

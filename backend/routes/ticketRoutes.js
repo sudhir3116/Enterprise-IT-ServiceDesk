@@ -11,25 +11,34 @@ const {
   getTicketById,
   confirmResolution,
   reopenTicket,
+  submitCSATRating,
+  saveInvestigation,
+  createArticleFromTicket,
 } = require("../controllers/ticketController");
 
 const {
   protect,
   requireRole,
 } = require("../middleware/authMiddleware");
+const { createTicketValidator } = require("../validators/ticketValidator");
 
 // All roles — normalized names used here; requireRole also accepts legacy DB names
-router.post("/", protect, requireRole("employee", "requester", "support_engineer", "agent", "admin"), createTicket);
+router.post("/", protect, requireRole("customer", "employee", "requester", "support_engineer", "agent", "admin"), createTicketValidator, createTicket);
 router.get("/", protect, requireRole("employee", "requester", "support_engineer", "agent", "admin"), getTickets);
 router.get("/:id", protect, requireRole("employee", "requester", "support_engineer", "agent", "admin"), getTicketById);
 router.post("/:id/comments", protect, requireRole("employee", "requester", "support_engineer", "agent", "admin"), addComment);
 
-// Customer resolution confirmation loops
+// Customer resolution confirmation & CSAT rating loops
 router.post("/:id/confirm-resolution", protect, confirmResolution);
 router.post("/:id/reopen", protect, reopenTicket);
+router.post("/:id/csat", protect, submitCSATRating);
 
 // Agent & Admin operations
 router.put("/:id", protect, requireRole("support_engineer", "agent", "admin"), updateTicketStatus);
+
+// Module 8 — Investigation & KB Article creation (engineer + admin only)
+router.put( "/:id/investigation",   protect, requireRole("support_engineer", "agent", "admin"), saveInvestigation);
+router.post("/:id/create-article",  protect, requireRole("support_engineer", "agent", "admin"), createArticleFromTicket);
 
 // Delete — role check also enforced in controller
 router.delete("/:id", protect, requireRole("employee", "requester", "support_engineer", "agent", "admin"), deleteTicket);

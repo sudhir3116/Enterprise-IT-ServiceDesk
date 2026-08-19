@@ -1,393 +1,316 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import api from '../services/api'
 import { 
-  User, Settings, Save, Lock, AlertCircle, CheckCircle2, 
-  Mail, Phone, Shield, Award, Clock, CheckCircle
+  User, Mail, Building2, Shield, Clock, CheckCircle2, Lock, 
+  KeyRound, Laptop, Smartphone, AlertCircle, Save, X, Sparkles, LogOut, Check, Wrench 
 } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import Card from '../components/enterprise/Card'
 import Button from '../components/enterprise/Button'
 import Badge from '../components/enterprise/Badge'
-import Card from '../components/enterprise/Card'
 import PageHeader from '../components/enterprise/PageHeader'
 import { useToast } from '../hooks/useToast'
+import api from '../services/api'
 
 export default function EngineerProfile() {
+  const { user, updateUser, logout } = useAuth()
   const { addToast } = useToast()
-  const { user, updateUser } = useAuth()
-  
-  const [profile, setProfile] = useState(user || {})
+
+  const [name, setName] = useState(user?.name || '')
+  const [nameError, setNameError] = useState('')
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [savingName, setSavingName] = useState(false)
+
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' })
-  
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState(null)
-  
-  const [stats, setStats] = useState({
-    assigned: 0,
-    closed: 0,
-    slaPerformance: 100,
-    resolutionRate: 0,
-    recentActivity: []
-  })
+  const [passError, setPassError] = useState('')
+  const [savingPass, setSavingPass] = useState(false)
+
+  const [stats, setStats] = useState({ assigned: 0, resolved: 0, avgResolutionTime: 'N/A' })
+
+  // Sync user state when loaded
+  useEffect(() => {
+    if (user?.name) {
+      setName(user.name)
+    }
+  }, [user])
 
   useEffect(() => {
-    let mounted = true
     api.get('/tickets?limit=100')
       .then(res => {
-        if (!mounted) return
-        const currentUserId = user._id || user.id
-        
-        // Tally engineer's queue
+        const currentUserId = user?._id || user?.id
         const myTickets = res.data.filter(t => t.assignedTo?._id === currentUserId || t.assignedTo?.id === currentUserId)
-        const active = myTickets.filter(t => !['Resolved', 'Closed'].includes(t.status))
         const resolved = myTickets.filter(t => ['Resolved', 'Closed'].includes(t.status))
         
-        // SLA Performance: percentage of resolved tickets not breached
-        const metSla = resolved.filter(t => !t.slaBreached).length
-        const slaPerf = resolved.length > 0 ? Math.round((metSla / resolved.length) * 100) : 100
-        
-        // Resolution Rate: resolved tickets / total queue
-        const resRate = myTickets.length > 0 ? Math.round((resolved.length / myTickets.length) * 100) : 0
-        
-        // Retrieve engineer's own activities from history logs
-        const myLogs = []
-        myTickets.forEach(t => {
-          if (t.history) {
-            t.history.forEach(h => {
-              if (h.performedBy === user.name) {
-                myLogs.push({
-                  ...h,
-                  ticketNumber: t.ticketNumber || `#${t._id.slice(-6).toUpperCase()}`,
-                  ticketId: t._id
-                })
-              }
-            })
-          }
-        })
-        const sortedLogs = myLogs.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6)
+        const avgTime = resolved.length > 0
+          ? (resolved.reduce((acc, curr) => acc + (new Date(curr.updatedAt) - new Date(curr.createdAt)), 0) / resolved.length / 3600000).toFixed(1)
+          : 'N/A'
 
         setStats({
-          assigned: active.length,
-          closed: resolved.length,
-          slaPerformance: slaPerf,
-          resolutionRate: resRate,
-          recentActivity: sortedLogs
+          assigned: myTickets.filter(t => !['Resolved', 'Closed'].includes(t.status)).length,
+          resolved: resolved.length,
+          avgResolutionTime: avgTime !== 'N/A' ? `${avgTime}h` : 'N/A'
         })
       })
-      .catch(err => {
-        console.error("Failed to load operational metrics", err)
-      })
+      .catch(err => console.error("Failed to load engineer metrics", err))
+  }, [user])
+
+  // Name Validation
+  const validateNameInput = (val) => {
+    const trimmed = val.trim()
+    if (!trimmed) {
+      setNameError('Full name is required.')
+      return false
+    }
+    if (trimmed.length < 3) {
+      setNameError('Name must be at least 3 characters.')
+      return false
+    }
+    if (trimmed.length > 50) {
+      setNameError('Name cannot exceed 50 characters.')
+      return false
+    }
+    setNameError('')
+    return true
+  }
+
+  const handleSaveName = async (e) => {
+    e.preventDefault()
+    if (!validateNameInput(name)) return
+
+    setSavingName(true)
+    try {
+      const res = await api.patch('/users/profile', { name: name.trim() })
+      const updatedName = res.data?.user?.name || name.trim()
       
-    return () => { mounted = false }
-  }, [user.id])
-
-  const handleProfileSave = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setMessage(null)
-    try {
-      await api.put(`/auth/users/${user.id}`, {
-        name: profile.name,
-        mobileNumber: profile.mobileNumber
-      })
-      updateUser({ name: profile.name, mobileNumber: profile.mobileNumber })
-      addToast('Profile information updated', 'success')
-      setMessage({ type: 'success', text: 'Profile updated successfully.' })
+      updateUser({ name: updatedName })
+      addToast('Profile name updated successfully!', 'success')
+      setIsEditingName(false)
     } catch (err) {
-      addToast(err.response?.data?.message || 'Failed to update profile', 'error')
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to update profile.' })
+      const errMsg = err.response?.data?.message || 'Failed to update name.'
+      setNameError(errMsg)
+      addToast(errMsg, 'error')
     } finally {
-      setLoading(false)
+      setSavingName(false)
     }
   }
 
-  const handlePasswordSave = async (e) => {
-    e.preventDefault()
-    if (passwords.new !== passwords.confirm) {
-      setMessage({ type: 'error', text: 'New passwords do not match.' })
-      addToast('New passwords do not match', 'error')
-      return
-    }
-    setLoading(true)
-    setMessage(null)
-    try {
-      await api.put(`/auth/users/${user.id}/password`, {
-        currentPassword: passwords.current,
-        newPassword: passwords.new
-      })
-      addToast('Security password updated', 'success')
-      setMessage({ type: 'success', text: 'Password updated successfully.' })
-      setPasswords({ current: '', new: '', confirm: '' })
-    } catch (err) {
-      addToast(err.response?.data?.message || 'Failed to update password', 'error')
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to update password.' })
-    } finally {
-      setLoading(false)
-    }
+  const handleCancelName = () => {
+    setName(user?.name || '')
+    setNameError('')
+    setIsEditingName(false)
   }
 
-  const labelStyle = {
-    display: 'block',
-    fontSize: '11px',
-    fontWeight: '700',
-    color: 'var(--ds-text-muted)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.07em',
-    marginBottom: '6px',
-  }
+  const userInitials = user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'E'
+  const isGoogleAccount = user?.authProvider === 'google' || !!user?.googleId
+  const regMethodLabel = isGoogleAccount ? 'Google OAuth' : 'Email Registration'
+  const orgName = user?.organization?.name || user?.organizationId?.name || 'Product Support Portal'
+
+  const formattedDate = user?.createdAt 
+    ? new Date(user.createdAt).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })
+    : 'N/A'
 
   return (
-    <div className="flex flex-col gap-6 w-full pb-10">
+    <div className="flex flex-col gap-6 w-full pb-12">
       
       {/* Page Header */}
-      <PageHeader
-        title="Support Analyst Profile"
-        description="View your ITIL ops credentials, SLA scorecards, and update account settings."
-        icon={User}
-        breadcrumbs={[{ name: 'Engineer', path: '/engineer/dashboard' }, { name: 'Profile' }]}
+      <PageHeader 
+        title="Engineer Identity & Profile Settings"
+        description="Manage your support engineer credentials, workspace performance metrics, and security settings."
+        breadcrumbs={[
+          { name: 'Engineer Console', path: '/engineer/dashboard' },
+          { name: 'Engineer Profile' }
+        ]}
       />
 
-      {message && (
-        <div
-          style={{
-            padding: '12px 16px',
-            borderRadius: '6px',
-            fontSize: '13px',
-            fontWeight: '500',
-            border: '1px solid',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            backgroundColor: message.type === 'success' ? 'var(--ds-success-subtle)' : 'var(--ds-danger-subtle)',
-            borderColor: message.type === 'success' ? 'var(--ds-success-subtle)' : 'var(--ds-danger-subtle)',
-            color: message.type === 'success' ? 'var(--ds-success)' : 'var(--ds-danger)',
-          }}
-        >
-          {message.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-          {message.text}
-        </div>
-      )}
-
-      {/* Main Double Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      {/* Main Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* LEFT COLUMN: Personal Info Form, Password form */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Left Column: Engineer Card */}
+        <Card className="p-6 space-y-6 lg:col-span-1 border-ds-border bg-ds-surface shadow-md">
           
-          {/* Profile Form */}
-          <form onSubmit={handleProfileSave}>
-            <Card className="p-0 overflow-hidden">
-              <div className="p-6 border-b border-[var(--ds-divider)] bg-[var(--ds-surface-raised)] flex items-center gap-2">
-                <User className="w-4 h-4 text-[var(--ds-text-muted)]" />
-                <h3 className="text-[13px] font-bold text-[var(--ds-text-primary)]">Personal &amp; Contact Information</h3>
+          <div className="flex flex-col items-center text-center space-y-3">
+            <div className="relative">
+              <div 
+                className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-extrabold text-white shadow-lg"
+                style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+              >
+                {userInitials}
               </div>
-              
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label style={labelStyle}>Full Name</label>
-                    <input 
-                      type="text" 
-                      value={profile.name || ''} 
-                      onChange={e => setProfile({...profile, name: e.target.value})}
-                      className="ds-input"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Email Address</label>
-                    <input 
-                      type="email" 
-                      value={profile.email || ''} 
-                      disabled
-                      className="ds-input opacity-70 cursor-not-allowed bg-[var(--ds-input-disabled)]"
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Mobile Number</label>
-                    <input 
-                      type="text" 
-                      value={profile.mobileNumber || ''} 
-                      onChange={e => setProfile({...profile, mobileNumber: e.target.value})}
-                      className="ds-input"
-                      placeholder="e.g. +1 555-0199"
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Employee ID</label>
-                    <input 
-                      type="text" 
-                      value={profile.employeeId || 'N/A'} 
-                      disabled
-                      className="ds-input opacity-70 cursor-not-allowed bg-[var(--ds-input-disabled)]"
-                    />
-                  </div>
-                </div>
-              </div>
+              <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-blue-500 border-2 border-ds-surface flex items-center justify-center">
+                <Wrench size={12} className="text-white font-bold" />
+              </span>
+            </div>
 
-              <div className="px-6 py-4 flex justify-end border-t border-[var(--ds-divider)] bg-[var(--ds-surface-raised)]">
-                <Button type="submit" isLoading={loading} icon={Save}>
-                  Save Information
-                </Button>
-              </div>
-            </Card>
-          </form>
+            <div>
+              <h2 className="text-lg font-bold text-primary">{user?.name}</h2>
+              <p className="text-xs text-tertiary truncate max-w-[220px]" title={user?.email}>{user?.email}</p>
+            </div>
 
-          {/* Change Password Form */}
-          <form onSubmit={handlePasswordSave}>
-            <Card className="p-0 overflow-hidden">
-              <div className="p-6 border-b border-[var(--ds-divider)] bg-[var(--ds-surface-raised)] flex items-center gap-2">
-                <Lock className="w-4 h-4 text-[var(--ds-text-muted)]" />
-                <h3 className="text-[13px] font-bold text-[var(--ds-text-primary)]">Security &amp; Password Management</h3>
-              </div>
-              
-              <div className="p-6 space-y-4">
-                <div>
-                  <label style={labelStyle}>Current Password</label>
-                  <input 
-                    type="password" 
-                    required
-                    value={passwords.current} 
-                    onChange={e => setPasswords({...passwords, current: e.target.value})}
-                    className="ds-input max-w-sm"
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label style={labelStyle}>New Password</label>
-                    <input 
-                      type="password" 
-                      required
-                      value={passwords.new} 
-                      onChange={e => setPasswords({...passwords, new: e.target.value})}
-                      className="ds-input"
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Confirm New Password</label>
-                    <input 
-                      type="password" 
-                      required
-                      value={passwords.confirm} 
-                      onChange={e => setPasswords({...passwords, confirm: e.target.value})}
-                      className="ds-input"
-                    />
-                  </div>
-                </div>
-              </div>
+            <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+              <Badge color="emerald" rounded="md">
+                Support Engineer
+              </Badge>
+              <Badge color="blue" rounded="md">
+                Active Account
+              </Badge>
+            </div>
+          </div>
 
-              <div className="px-6 py-4 flex justify-end border-t border-[var(--ds-divider)] bg-[var(--ds-surface-raised)]">
-                <Button type="submit" isLoading={loading} icon={Save}>
-                  Update Password
-                </Button>
-              </div>
-            </Card>
-          </form>
+          {/* Engineer Performance Metrics */}
+          <div className="grid grid-cols-3 gap-2 py-3 border-y border-ds-border text-center">
+            <div className="p-2 rounded bg-ds-surface-raised border border-ds-border">
+              <span className="text-[10px] text-tertiary block font-bold">Assigned</span>
+              <span className="text-sm font-bold text-indigo-500">{stats.assigned}</span>
+            </div>
+            <div className="p-2 rounded bg-ds-surface-raised border border-ds-border">
+              <span className="text-[10px] text-tertiary block font-bold">Resolved</span>
+              <span className="text-sm font-bold text-emerald-500">{stats.resolved}</span>
+            </div>
+            <div className="p-2 rounded bg-ds-surface-raised border border-ds-border">
+              <span className="text-[10px] text-tertiary block font-bold">Avg MTTR</span>
+              <span className="text-sm font-bold text-amber-500">{stats.avgResolutionTime}</span>
+            </div>
+          </div>
 
-        </div>
+          <div className="space-y-3 text-xs">
+            <div className="flex items-center justify-between py-1">
+              <span className="text-tertiary flex items-center gap-1.5">
+                <Building2 size={14} className="text-indigo-500" />
+                Organization
+              </span>
+              <span className="font-semibold text-primary truncate max-w-[140px]" title={orgName}>
+                {orgName}
+              </span>
+            </div>
 
-        {/* RIGHT COLUMN: Profile Picture card, Performance KPI metrics, Recent activity timeline */}
-        <div className="w-full space-y-6">
-          
-          {/* Avatar / Credentials Panel */}
-          <Card className="p-6 flex flex-col items-center text-center">
-            <div 
-              className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white mb-4 border border-[var(--ds-border)] shadow-md"
-              style={{ background: 'linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-hover) 100%)' }}
+            <div className="flex items-center justify-between py-1">
+              <span className="text-tertiary flex items-center gap-1.5">
+                <Shield size={14} className="text-blue-500" />
+                Auth Method
+              </span>
+              <span className="font-semibold text-primary">
+                {regMethodLabel}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between py-1">
+              <span className="text-tertiary flex items-center gap-1.5">
+                <Clock size={14} className="text-emerald-500" />
+                Joined Date
+              </span>
+              <span className="font-semibold text-primary">
+                {formattedDate}
+              </span>
+            </div>
+          </div>
+
+          <div className="border-t border-ds-border pt-4">
+            <Button
+              variant="secondary"
+              className="w-full justify-center text-red-500 hover:text-red-600 hover:bg-red-500/10"
+              onClick={logout}
+              icon={LogOut}
             >
-              {profile.name?.charAt(0).toUpperCase() || 'E'}
-            </div>
-            
-            <h4 className="text-[15px] font-bold text-[var(--ds-text-primary)] leading-tight">{profile.name}</h4>
-            <div className="mt-1 flex items-center gap-1.5 flex-wrap justify-center">
-              <span className="text-[12px] text-[var(--ds-text-muted)]">{profile.email}</span>
-              <Badge color="indigo">Support Analyst</Badge>
-            </div>
-            
-            <div className="w-full grid grid-cols-2 gap-2.5 border-t border-[var(--ds-divider)] pt-4 mt-4 text-xs">
-              <div className="flex flex-col gap-0.5 text-left">
-                <span className="text-tertiary">Department</span>
-                <span className="font-semibold text-secondary truncate">{profile.department || 'IT Operations'}</span>
-              </div>
-              <div className="flex flex-col gap-0.5 text-left">
-                <span className="text-tertiary">Designation</span>
-                <span className="font-semibold text-secondary truncate">{profile.designation || 'Tier-II Engineer'}</span>
-              </div>
-            </div>
-          </Card>
+              Sign Out of Account
+            </Button>
+          </div>
 
-          {/* Performance KPI Met scorecards */}
-          <Card className="space-y-4">
-            <h3 className="text-[13px] font-bold text-[var(--ds-text-primary)] flex items-center gap-1.5 border-b border-[var(--ds-divider)] pb-3 uppercase tracking-wider">
-              <Award className="w-4 h-4 text-amber-500" /> Operational Metrics
-            </h3>
-            
-            <div className="grid grid-cols-2 gap-3 pb-3 border-b border-[var(--ds-divider)]">
-              <div className="p-3 bg-[var(--ds-surface-subtle)] border border-[var(--ds-border)] rounded-lg text-center">
-                <span className="text-[10px] text-tertiary font-bold uppercase block">Active Tickets</span>
-                <span className="text-lg font-bold text-[var(--brand-primary)] mt-1.5 block leading-none">{stats.assigned}</span>
-              </div>
-              <div className="p-3 bg-[var(--ds-surface-subtle)] border border-[var(--ds-border)] rounded-lg text-center">
-                <span className="text-[10px] text-tertiary font-bold uppercase block">Closed Tickets</span>
-                <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-1.5 block leading-none">{stats.closed}</span>
-              </div>
-            </div>
+        </Card>
 
-            <div className="space-y-4.5 text-xs pt-1">
-              {/* SLA Met Rate */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center text-[12px]">
-                  <span className="text-secondary font-semibold flex items-center gap-1"><Clock size={13} className="text-ds-text-muted"/> SLA Met Rate</span>
-                  <span className="font-bold text-[var(--ds-text-primary)]">{stats.slaPerformance}%</span>
-                </div>
-                <div className="w-full bg-[var(--ds-surface-subtle)] rounded-full h-1.5 overflow-hidden">
-                  <div 
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${stats.slaPerformance}%`, backgroundColor: stats.slaPerformance > 85 ? 'var(--ds-success)' : stats.slaPerformance > 70 ? 'var(--ds-warning)' : 'var(--ds-danger)' }}
-                  />
-                </div>
+        {/* Right Column: Settings */}
+        <div className="space-y-6 lg:col-span-2">
+          
+          {/* Section 1: Personal Information */}
+          <Card className="p-6 space-y-4 border-ds-border bg-ds-surface shadow-md">
+            <div className="flex items-center justify-between pb-3 border-b border-ds-border">
+              <div>
+                <h3 className="text-base font-bold text-primary flex items-center gap-2">
+                  <User size={18} className="text-indigo-500" />
+                  Personal Information
+                </h3>
+                <p className="text-xs text-tertiary">Update your display name across ticket operations.</p>
               </div>
 
-              {/* Resolution rate */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center text-[12px]">
-                  <span className="text-secondary font-semibold flex items-center gap-1"><CheckCircle size={13} className="text-ds-text-muted"/> Resolution Rate</span>
-                  <span className="font-bold text-[var(--ds-text-primary)]">{stats.resolutionRate}%</span>
-                </div>
-                <div className="w-full bg-[var(--ds-surface-subtle)] rounded-full h-1.5 overflow-hidden">
-                  <div 
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${stats.resolutionRate}%`, backgroundColor: 'var(--brand-primary)' }}
-                  />
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Recent Operations Log Activities */}
-          <Card className="flex flex-col">
-            <h3 className="text-[13px] font-bold text-[var(--ds-text-primary)] flex items-center gap-1.5 border-b border-[var(--ds-divider)] pb-3 uppercase tracking-wider">
-              <Award className="w-4 h-4 text-[var(--brand-primary)]" /> Recent Activity
-            </h3>
-            
-            <div className="relative border-l border-[var(--ds-divider)] ml-3 space-y-4.5 py-3 pr-1 max-h-[220px] overflow-y-auto pl-5.5">
-              {stats.recentActivity.length > 0 ? (
-                stats.recentActivity.map((act, idx) => (
-                  <div key={idx} className="relative">
-                    <div className="absolute -left-[30px] top-1.5 w-2 h-2 rounded-full bg-[var(--ds-surface)] border-2 border-[var(--ds-border-strong)]" />
-                    <div className="flex flex-col gap-0.5 leading-tight">
-                      <span className="text-[12.5px] text-[var(--ds-text-primary)]">
-                        {act.action.toLowerCase()} on <Link to={`/engineer/ticket/${act.ticketId}`} className="font-bold underline hover:text-[var(--brand-primary)]">{act.ticketNumber}</Link>
-                      </span>
-                      <span className="text-[10px] text-[var(--ds-text-muted)] uppercase tracking-wider mt-0.5">
-                        {new Date(act.date).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-4 text-xs italic text-[var(--ds-text-muted)] ml-[-12px]">No recent updates recorded.</div>
+              {!isEditingName && (
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  onClick={() => setIsEditingName(true)}
+                >
+                  Edit Profile
+                </Button>
               )}
+            </div>
+
+            {isEditingName ? (
+              <form onSubmit={handleSaveName} className="space-y-4 pt-1">
+                <div className="space-y-1.5">
+                  <label className="ds-label font-bold text-primary">Full Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={e => {
+                      setName(e.target.value)
+                      if (nameError) validateNameInput(e.target.value)
+                    }}
+                    className={`ds-input text-xs w-full ${nameError ? 'border-red-500 focus:border-red-500' : ''}`}
+                    placeholder="Enter your full name"
+                    disabled={savingName}
+                    autoFocus
+                  />
+                  {nameError && (
+                    <p className="text-[11px] text-red-500 font-medium flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      {nameError}
+                    </p>
+                  )}
+                  <p className="text-[11px] text-tertiary">
+                    Must be between 3 and 50 characters long.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    isLoading={savingName}
+                    disabled={savingName || !!nameError || !name.trim()}
+                    icon={Save}
+                  >
+                    Save Changes
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleCancelName}
+                    disabled={savingName}
+                    icon={X}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-1">
+                <div className="p-3 rounded-lg border border-ds-border bg-ds-surface-raised space-y-1">
+                  <span className="text-[10px] font-bold text-tertiary uppercase tracking-wider block">Full Name</span>
+                  <span className="font-bold text-primary text-sm">{user?.name}</span>
+                </div>
+                <div className="p-3 rounded-lg border border-ds-border bg-ds-surface-raised space-y-1">
+                  <span className="text-[10px] font-bold text-tertiary uppercase tracking-wider block">Email Address</span>
+                  <span className="font-bold text-primary truncate block" title={user?.email}>{user?.email}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Lock Notice */}
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-2.5 text-xs text-amber-600 dark:text-amber-400">
+              <Lock size={16} className="shrink-0 mt-0.5" />
+              <div>
+                <strong className="block font-bold">Enterprise Identity Governance Notice</strong>
+                Email address, application role, organization, and status are governed by system policies and can only be updated by administrators.
+              </div>
             </div>
           </Card>
 

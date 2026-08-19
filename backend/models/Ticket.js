@@ -6,7 +6,55 @@ const commentSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   name: { type: String, required: true },
   isInternal: { type: Boolean, default: false },
+  type: { type: String, enum: ["public_reply", "internal_note", "system_update"], default: "public_reply" },
   createdAt: { type: Date, default: Date.now },
+});
+
+// ── Attachment sub-document ───────────────────────────────────────────────────
+const attachmentSchema = new mongoose.Schema({
+  name:       { type: String, required: true },
+  url:        { type: String, required: true },
+  fileType:   { type: String, default: "" },
+  size:       { type: Number, default: 0 },
+  uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  uploadedAt: { type: Date, default: Date.now }
+});
+
+// ── Environment sub-document ──────────────────────────────────────────────────
+const environmentSchema = new mongoose.Schema({
+  browser: { type: String, default: "" },
+  OS:      { type: String, default: "" },
+  device:  { type: String, default: "Desktop" }
+});
+
+// ── Technical Issue Details sub-document ──────────────────────────────────────
+const issueDetailsSchema = new mongoose.Schema({
+  stepsToReproduce: { type: String, default: "" },
+  expectedBehavior: { type: String, default: "" },
+  actualBehavior:   { type: String, default: "" }
+});
+
+// ── Investigation sub-document (engineer-only, Module 8) ──────────────────────
+const investigationSchema = new mongoose.Schema({
+  issueType: {
+    type: String,
+    enum: ["Bug", "Question", "Feature Request", "Configuration Issue"],
+    default: "Bug",
+  },
+  severity: {
+    type: String,
+    enum: ["Critical", "High", "Medium", "Low"],
+    default: "Medium",
+  },
+  reproducible: {
+    type: String,
+    enum: ["Yes", "No", "Intermittent"],
+    default: "Yes",
+  },
+  appVersion:      { type: String, default: "" },
+  technicalNotes:  { type: String, default: "" },
+  investigatedBy:  { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  investigatedAt:  { type: Date },
 });
 
 // ── Activity timeline entry ────────────────────────────────────────────────────
@@ -61,17 +109,64 @@ const ticketSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Multi-tenant Organization Boundary
+    organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", index: true },
+
     // People
     createdBy:  { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
+
+    // Enterprise SaaS Technical Context
+    environment: { type: environmentSchema, default: () => ({}) },
+    issueDetails: { type: issueDetailsSchema, default: () => ({}) },
+    investigation: { type: investigationSchema, default: () => ({}) },
+    attachments: [attachmentSchema],
+    resolutionSummary: { type: String, default: "" },
+
+    // Linked Bug Reports (Module 8)
+    bugReportIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "BugReport" }],
 
     // SLA
     dueDate:     { type: Date },   // SLA deadline (computed on creation)
     resolvedAt:  { type: Date },   // when status moved to Resolved/Closed
     slaBreached: { type: Boolean, default: false },
+    sla: {
+      policyId: { type: mongoose.Schema.Types.ObjectId, ref: "SlaPolicy" },
+      firstResponseDue: { type: Date },
+      firstRespondedAt: { type: Date },
+      resolutionDue: { type: Date },
+      breached: { type: Boolean, default: false },
+      responseBreached: { type: Boolean, default: false },
+      resolutionBreached: { type: Boolean, default: false },
+    },
 
     // Tags for advanced filtering
     tags: [{ type: String }],
+
+    // Ticket Source & Email Threading Context
+    source: {
+      type: String,
+      enum: ["web", "email", "api"],
+      default: "web",
+      index: true,
+    },
+    emailThreadId: { type: String, index: true },
+    externalMessageId: { type: String, index: true },
+    emailConversationHistory: [
+      {
+        messageId: { type: String },
+        from: { type: String },
+        to: { type: String },
+        subject: { type: String },
+        body: { type: String },
+        sentAt: { type: Date, default: Date.now },
+        isOutbound: { type: Boolean, default: false }
+      }
+    ],
+
+    // CSAT Customer Rating (1 to 5 stars)
+    csatRating: { type: Number, min: 1, max: 5 },
+    csatFeedback: { type: String, default: "" },
 
     // Soft delete
     isDeleted: { type: Boolean, default: false, index: true },
@@ -90,9 +185,10 @@ const ticketSchema = new mongoose.Schema(
 // ── Full-text search index on title + description ──────────────────────────────
 ticketSchema.index({ title: "text", description: "text", tags: "text" });
 
-// ── Compound index for common queries ─────────────────────────────────────────
-ticketSchema.index({ createdBy: 1, status: 1, createdAt: -1 });
-ticketSchema.index({ assignedTo: 1, status: 1 });
+// ── Compound index for common multi-tenant queries ───────────────────────────
+ticketSchema.index({ organizationId: 1, status: 1, createdAt: -1 });
+ticketSchema.index({ organizationId: 1, createdBy: 1, createdAt: -1 });
+ticketSchema.index({ organizationId: 1, assignedTo: 1, status: 1 });
 
 // ── SLA deadline helper map ────────────────────────────────────────────────────
 const SLA_HOURS = { Critical: 4, High: 24, Medium: 72, Low: 120 };

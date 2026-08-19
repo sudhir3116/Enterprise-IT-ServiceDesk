@@ -4,157 +4,14 @@ const sendEmail = require("../utils/sendEmail");
 const Notification = require("../models/Notification");
 const { logAction } = require("../utils/auditLogger");
 const Comment = require("../models/Comment");
+const ticketService = require("../services/ticketService");
 
 // Create Ticket
 const createTicket = async (req, res, next) => {
   try {
-    const { title, description, category, impact, urgency, department } = req.body;
-
-    const ticket = new Ticket({
-      title,
-      description,
-      category,
-      impact: impact || "Medium",
-      urgency: urgency || "Medium",
-      department,
-      createdBy: req.user._id,
-      history: [{
-        action: "Ticket Created",
-        performedBy: req.user.name,
-      }]
-    });
-
-    // Workload-aware Automatic Ticket Assignment (Auto-Routing)
-    try {
-      const agents = await User.find({
-        role: "agent",
-        team: category,
-        accountStatus: "active"
-      });
-
-      if (agents.length > 0) {
-        const agentWorkloads = await Promise.all(agents.map(async (agent) => {
-          const activeCount = await Ticket.countDocuments({
-            assignedTo: agent._id,
-            status: { $in: ["Assigned", "In Progress"] },
-            isDeleted: false
-          });
-          return { agent, activeCount };
-        }));
-
-        // Sort ascending by workload (lowest count first)
-        agentWorkloads.sort((a, b) => a.activeCount - b.activeCount);
-        const bestAgent = agentWorkloads[0].agent;
-
-        ticket.assignedTo = bestAgent._id;
-        ticket.status = "Assigned";
-        ticket.history.push({
-          action: `Auto-assigned to support agent ${bestAgent.name} (Category: ${category})`,
-          performedBy: "System"
-        });
-      } else {
-        ticket.history.push({
-          action: "Awaiting Manual Assignment (No active agents matching category)",
-          performedBy: "System"
-        });
-      }
-    } catch (routeErr) {
-      console.error("Auto-routing error:", routeErr.message);
-      ticket.history.push({
-        action: "Auto-assignment failed, queued for manual review",
-        performedBy: "System"
-      });
-    }
-
-    // Save ticket — triggers Mongoose pre-save hook for priority calculation & due date
-    await ticket.save();
-
-    // Write AuditLog for ticket creation
-    await logAction("Ticket", ticket._id, "Create Ticket", req.user._id, {
-      after: {
-        title,
-        description,
-        category,
-        priority: ticket.priority,
-        dueDate: ticket.dueDate,
-        ticketNumber: ticket.ticketNumber,
-      }
-    });
-
-    // Create in-app notifications for admins and assignee
-    try {
-      const receivers = [];
-      const admins = await User.find({ role: "admin" });
-      receivers.push(...admins.map(a => a._id));
-      if (ticket.assignedTo) {
-        receivers.push(ticket.assignedTo);
-      }
-
-      const notifPromises = [...new Set(receivers)].map(userId => Notification.create({
-        recipient: userId,
-        title: "Incident Activated",
-        message: `Ticket "${title}" (${ticket.ticketNumber}) has been logged and assigned.`,
-        ticketId: ticket._id
-      }));
-      await Promise.all(notifPromises);
-    } catch (notifErr) {
-      console.error("Failed to create in-app notifications:", notifErr.message);
-    }
-
-    // Send Ticket Created HTML Email to Requester
-    try {
-      const emailHtml = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03);">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
-          <div style="height: 36px; width: 36px; display: flex; align-items: center; justify-content: center; background: #2563eb; border-radius: 10px; color: #ffffff; font-weight: bold; font-size: 16px;">⚡</div>
-          <span style="font-weight: 750; font-size: 14px; color: #0f172a; letter-spacing: 0.5px; text-transform: uppercase;">Product Support Portal</span>
-        </div>
-        <h2 style="font-size: 20px; font-weight: 700; color: #0f172a; margin-top: 0; margin-bottom: 12px;">Ticket Received</h2>
-        <p style="font-size: 14px; color: #475569; line-height: 1.5;">Your support ticket <strong>${ticket.ticketNumber}</strong> has been logged in our queue. Details are listed below:</p>
-        
-        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
-          <p style="margin: 0 0 8px; font-size: 13px; color: #475569;"><strong style="color: #0f172a;">Title:</strong> ${title}</p>
-          <p style="margin: 0 0 8px; font-size: 13px; color: #475569;"><strong style="color: #0f172a;">Category:</strong> ${category}</p>
-          <p style="margin: 0 0 8px; font-size: 13px; color: #475569;"><strong style="color: #0f172a;">Priority:</strong> ${ticket.priority}</p>
-          ${ticket.dueDate ? `<p style="margin: 0; font-size: 13px; color: #475569;"><strong style="color: #0f172a;">Estimated SLA Resolution:</strong> ${new Date(ticket.dueDate).toLocaleString()}</p>` : ''}
-        </div>
-      </div>
-      `;
-
-      await sendEmail(req.user.email, `Support Ticket Logged: ${ticket.ticketNumber}`, emailHtml);
-    } catch (mailError) {
-      console.error("Mail Send Failure: ", mailError.message);
-    }
-
-    // Send Ticket Assigned HTML Email to Agent
-    if (ticket.assignedTo) {
-      try {
-        const assignedAgent = await User.findById(ticket.assignedTo);
-        if (assignedAgent) {
-          const agentEmailHtml = `
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03);">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
-              <div style="height: 36px; width: 36px; display: flex; align-items: center; justify-content: center; background: #2563eb; border-radius: 10px; color: #ffffff; font-weight: bold; font-size: 16px;">⚡</div>
-              <span style="font-weight: 750; font-size: 14px; color: #0f172a; letter-spacing: 0.5px; text-transform: uppercase;">Product Support Portal</span>
-            </div>
-            <h2 style="font-size: 20px; font-weight: 700; color: #0f172a; margin-top: 0; margin-bottom: 12px;">New Task Assigned</h2>
-            <p style="font-size: 14px; color: #475569; line-height: 1.5;">Hello ${assignedAgent.name},</p>
-            <p style="font-size: 14px; color: #475569; line-height: 1.5;">You have been assigned to investigate incident <strong>${ticket.ticketNumber}</strong>:</p>
-            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
-              <p style="margin: 0 0 8px; font-size: 13px; color: #475569;"><strong style="color: #0f172a;">Title:</strong> ${title}</p>
-              <p style="margin: 0 0 8px; font-size: 13px; color: #475569;"><strong style="color: #0f172a;">Priority:</strong> ${ticket.priority}</p>
-              <p style="margin: 0; font-size: 13px; color: #475569;"><strong style="color: #0f172a;">SLA Due Date:</strong> ${new Date(ticket.dueDate).toLocaleString()}</p>
-            </div>
-          </div>
-          `;
-          await sendEmail(assignedAgent.email, `New Support Assignment: ${ticket.ticketNumber}`, agentEmailHtml);
-        }
-      } catch (agentMailErr) {
-        console.error("Agent assignment email dispatch failed:", agentMailErr.message);
-      }
-    }
-
+    const ticket = await ticketService.createTicket(req.body, req.user);
     res.status(201).json({
+      success: true,
       message: "Ticket Created Successfully",
       ticket,
     });
@@ -171,6 +28,10 @@ const getTickets = async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     const filter = { isDeleted: false };
+
+    if (req.user.organizationId) {
+      filter.organizationId = req.user.organizationId?._id || req.user.organizationId;
+    }
 
     // Basic filtering
     if (req.query.status) {
@@ -528,8 +389,8 @@ const addComment = async (req, res, next) => {
       throw new Error("Ticket Not Found");
     }
 
-    // Requester/employee authorization: can only comment on own tickets
-    if (["requester", "employee"].includes(req.user.role) && ticket.createdBy.toString() !== req.user._id.toString()) {
+    // Requester/employee/customer authorization: can only comment on own tickets
+    if (["customer", "requester", "employee"].includes(req.user.role) && ticket.createdBy.toString() !== req.user._id.toString()) {
       res.status(403);
       throw new Error("Access Forbidden: You cannot reply to tickets created by other users.");
     }
@@ -545,6 +406,16 @@ const addComment = async (req, res, next) => {
       isInternal: setInternal,
     });
     
+    // Record first response timestamp if staff/admin replies publicly
+    const isStaff = ["support_engineer", "agent", "admin"].includes(req.user.role) || ["support_engineer", "agent", "admin"].includes(req.user.dbRole);
+    if (isStaff && !setInternal) {
+      if (!ticket.sla) {
+        ticket.sla = { breached: false, responseBreached: false, resolutionBreached: false };
+      }
+      ticket.sla.firstRespondedAt = ticket.sla.firstRespondedAt || new Date();
+      ticket.markModified("sla");
+    }
+
     ticket.history.push({
       action: setInternal ? `Added an internal note` : `Added a public comment`,
       performedBy: req.user.name,
@@ -578,6 +449,10 @@ const addComment = async (req, res, next) => {
             message: `${req.user.name} posted a new reply to your ticket "${ticket.title}".`,
             ticketId: ticket._id
           });
+
+          // Dispatch outbound email to customer
+          const emailService = require("../services/emailService");
+          await emailService.sendEngineerReplyNotification(ticket, text, req.user.name).catch(() => {});
         }
       }
     } catch (notifErr) {
@@ -638,8 +513,8 @@ const getTicketById = async (req, res, next) => {
       }).catch(()=>{});
     }
 
-    // Check authorization: Employee/Requester can only view their own tickets
-    if (["requester", "employee"].includes(req.user.role) && ticket.createdBy._id.toString() !== req.user._id.toString()) {
+    // Check authorization: Employee/Requester/Customer can only view their own tickets
+    if (["customer", "requester", "employee"].includes(req.user.role) && ticket.createdBy._id.toString() !== req.user._id.toString()) {
       res.status(403);
       throw new Error("Access Forbidden");
     }
@@ -657,7 +532,7 @@ const getTicketById = async (req, res, next) => {
 
     // Fetch comments from standalone collection and filter based on user role
     const commentsQuery = { ticket: ticket._id };
-    if (["requester", "employee"].includes(req.user.role)) {
+    if (["customer", "requester", "employee"].includes(req.user.role)) {
       commentsQuery.isInternal = false;
     }
     const dbComments = await Comment.find(commentsQuery)
@@ -779,6 +654,166 @@ const reopenTicket = async (req, res, next) => {
   }
 };
 
+// Submit Customer Satisfaction (CSAT) Rating (Customer / Creator only)
+const submitCSATRating = async (req, res, next) => {
+  try {
+    const { rating, feedback } = req.body;
+    const ticketId = req.params.id;
+
+    const ticket = await Ticket.findOne({ _id: ticketId, isDeleted: false });
+
+    if (!ticket) {
+      return res.status(404).json({ message: "Ticket Not Found" });
+    }
+
+    if (ticket.createdBy.toString() !== req.user._id.toString() && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access Forbidden: Only the ticket requester can submit CSAT rating." });
+    }
+
+    const numericRating = Number(rating);
+    if (!numericRating || numericRating < 1 || numericRating > 5) {
+      return res.status(400).json({ message: "CSAT rating must be a number between 1 and 5." });
+    }
+
+    ticket.csatRating = numericRating;
+    ticket.csatFeedback = feedback ? String(feedback).trim() : "";
+
+    ticket.history.push({
+      action: "CSAT Feedback Submitted",
+      performedBy: req.user.name,
+      detail: `Rated ${numericRating}/5 stars.${feedback ? ' Feedback: ' + feedback : ''}`
+    });
+
+    await ticket.save();
+
+    await logAction("Ticket", ticket._id, "CSAT_RATING_SUBMITTED", req.user._id, {
+      details: { rating: numericRating, feedback }
+    }).catch(() => {});
+
+    res.status(200).json({
+      success: true,
+      message: "Thank you for your feedback!",
+      ticket: {
+        id: ticket._id,
+        csatRating: ticket.csatRating,
+        csatFeedback: ticket.csatFeedback
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ── PUT /api/tickets/:id/investigation ────────────────────────────────────────
+// Save investigation details — engineer and admin only
+const saveInvestigation = async (req, res, next) => {
+  try {
+    const orgId = req.user.organizationId?._id || req.user.organizationId;
+    const filter = { _id: req.params.id, isDeleted: false };
+    if (orgId && req.user.role !== "admin") {
+      filter.$or = [{ organizationId: orgId }, { organizationId: { $exists: false } }, { organizationId: null }];
+    }
+    const ticket = await Ticket.findOne(filter);
+    if (!ticket) return res.status(404).json({ message: "Ticket not found" });
+
+    const { issueType, severity, reproducible, appVersion, technicalNotes } = req.body;
+
+    // Merge into existing investigation sub-doc
+    if (issueType      !== undefined) ticket.investigation.issueType     = issueType;
+    if (severity       !== undefined) ticket.investigation.severity      = severity;
+    if (reproducible   !== undefined) ticket.investigation.reproducible  = reproducible;
+    if (appVersion     !== undefined) ticket.investigation.appVersion    = appVersion;
+    if (technicalNotes !== undefined) ticket.investigation.technicalNotes = technicalNotes;
+
+    ticket.investigation.investigatedBy = req.user._id;
+    ticket.investigation.investigatedAt = new Date();
+
+    // Also update top-level issueDetails if provided (sync with investigation)
+    if (req.body.stepsToReproduce !== undefined) ticket.issueDetails.stepsToReproduce = req.body.stepsToReproduce;
+    if (req.body.expectedBehavior !== undefined) ticket.issueDetails.expectedBehavior = req.body.expectedBehavior;
+    if (req.body.actualBehavior   !== undefined) ticket.issueDetails.actualBehavior   = req.body.actualBehavior;
+
+    ticket.history.push({
+      action:      "Investigation Updated",
+      performedBy: req.user.name,
+      detail:      `Issue type: ${issueType || ticket.investigation.issueType}, Severity: ${severity || ticket.investigation.severity}`,
+    });
+
+    await ticket.save();
+
+    await logAction("Ticket", ticket._id, "INVESTIGATION_SAVED", req.user._id, {
+      after: { issueType, severity, reproducible, investigatedBy: req.user.name },
+    }).catch(() => {});
+
+    res.status(200).json({ success: true, message: "Investigation saved", investigation: ticket.investigation });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ── POST /api/tickets/:id/create-article ──────────────────────────────────────
+// Convert a resolved ticket into a Knowledge Base article
+const createArticleFromTicket = async (req, res, next) => {
+  try {
+    const KnowledgeArticle = require("../models/KnowledgeArticle");
+    const orgId = req.user.organizationId?._id || req.user.organizationId;
+
+    const filter = { _id: req.params.id, isDeleted: false };
+    if (orgId && req.user.role !== "admin") {
+      filter.$or = [{ organizationId: orgId }, { organizationId: { $exists: false } }, { organizationId: null }];
+    }
+    const ticket = await Ticket.findOne(filter).populate("assignedTo", "name email");
+    if (!ticket) return res.status(404).json({ message: "Ticket not found" });
+
+    if (!["Resolved", "Closed"].includes(ticket.status)) {
+      return res.status(422).json({ message: "Only Resolved or Closed tickets can be converted to knowledge articles" });
+    }
+
+    const { title, content, category, visibility, relatedBugIds } = req.body;
+
+    // Auto-generate slug from title
+    const slugify = (text) => text.toString().toLowerCase().trim()
+      .replace(/\s+/g, "-").replace(/[^\w\-]+/g, "").replace(/\-\-+/g, "-");
+
+    const baseSlug = slugify(title || ticket.title);
+    const slug = `${baseSlug}-${Date.now()}`;
+
+    // Build default content from ticket fields if not provided
+    const defaultContent = content || [
+      `## Problem\n${ticket.description}`,
+      ticket.issueDetails?.stepsToReproduce ? `## Steps to Reproduce\n${ticket.issueDetails.stepsToReproduce}` : "",
+      ticket.issueDetails?.expectedBehavior ? `## Expected Behaviour\n${ticket.issueDetails.expectedBehavior}` : "",
+      ticket.issueDetails?.actualBehavior   ? `## Actual Behaviour\n${ticket.issueDetails.actualBehavior}`   : "",
+      ticket.resolutionSummary ? `## Solution\n${ticket.resolutionSummary}` : "",
+    ].filter(Boolean).join("\n\n");
+
+    const article = await KnowledgeArticle.create({
+      organizationId: orgId,
+      title:          title || ticket.title,
+      slug,
+      summary:        `Converted from ticket ${ticket.ticketNumber}: ${ticket.title}`,
+      content:        defaultContent,
+      category:       category || ticket.category || "Troubleshooting",
+      visibility:     visibility || "internal",
+      status:         "draft",
+      author:         req.user._id,
+      chunks:         [],
+      // Module 8 linkage
+      sourceTicketId: ticket._id,
+      relatedBugIds:  relatedBugIds || ticket.bugReportIds || [],
+      tags:           [ticket.category, ticket.priority].filter(Boolean),
+    });
+
+    await logAction("KnowledgeArticle", article._id, "ARTICLE_CREATED_FROM_TICKET", req.user._id, {
+      after: { title: article.title, sourceTicketId: ticket._id, ticketNumber: ticket.ticketNumber },
+    }).catch(() => {});
+
+    res.status(201).json({ success: true, message: "Knowledge article created", article });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createTicket,
   getTickets,
@@ -788,4 +823,7 @@ module.exports = {
   getTicketById,
   confirmResolution,
   reopenTicket,
+  submitCSATRating,
+  saveInvestigation,
+  createArticleFromTicket,
 };

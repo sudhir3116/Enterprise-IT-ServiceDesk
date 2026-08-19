@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Ticket, Search, Filter, AlertTriangle, Eye, CheckCircle2, UserCheck } from 'lucide-react'
 import api from '../services/api'
-import { getUser } from '../services/auth'
+import { useAuth } from '../context/AuthContext'
 import PageHeader from '../components/enterprise/PageHeader'
 import FilterBar from '../components/enterprise/FilterBar'
 import Table from '../components/enterprise/Table'
@@ -14,7 +14,7 @@ import { useToast } from '../hooks/useToast'
 export default function EngineerTickets() {
   const { addToast } = useToast()
   const navigate = useNavigate()
-  const currentUser = getUser()
+  const { user: currentUser } = useAuth()
   const currentUserId = currentUser?._id || currentUser?.id
 
   const [tickets, setTickets] = useState([])

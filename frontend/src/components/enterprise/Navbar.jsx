@@ -307,9 +307,17 @@ export default function Navbar({ setMobileMenuOpen, setSearchOpen }) {
                 boxShadow: 'var(--ds-shadow-overlay)'
               }}
             >
-              <div className="px-4 py-2.5 border-b" style={{ borderColor: 'var(--ds-divider)' }}>
-                <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--ds-text-primary)' }}>{user?.name}</p>
+              <div className="px-4 py-2.5 border-b space-y-1" style={{ borderColor: 'var(--ds-divider)' }}>
+                <p className="text-[13px] font-bold truncate" style={{ color: 'var(--ds-text-primary)' }}>{user?.name}</p>
                 <p className="text-[11px] truncate" style={{ color: 'var(--ds-text-muted)' }}>{user?.email}</p>
+                <div className="flex items-center gap-1.5 pt-0.5">
+                  <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                    {(user?.role || 'customer').replace('_', ' ')}
+                  </span>
+                  <span className="text-[10px] truncate text-tertiary">
+                    {user?.organization?.name || 'Product Support Portal'}
+                  </span>
+                </div>
               </div>
               <button
                 onClick={() => { navigate(getSettingsPath()); setShowUserMenu(false) }}
