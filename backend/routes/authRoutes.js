@@ -36,16 +36,7 @@ const {
   resendVerificationValidator,
 } = require("../validators/authValidator");
 
-// Strict rate limiter for authentication endpoints to prevent brute-force attacks
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 attempts per windowMs
-  message: {
-    message: "Too many authentication requests from this IP. Please try again after 15 minutes."
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const { authLimiter } = require("../middleware/rateLimiter");
 
 router.post("/register", authLimiter, registerValidator, registerUser);
 router.post("/login", authLimiter, loginValidator, loginUser);

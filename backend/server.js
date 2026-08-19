@@ -33,6 +33,9 @@ connectDB().then(async () => {
 
   const app = express();
 
+  // Express Proxy Configuration for Render / Cloudflare reverse proxies
+  app.set("trust proxy", 1);
+
   // Security Middlewares
   app.use(helmet({
     contentSecurityPolicy: false, // Let Vite dev reload work if run on same domain
@@ -68,12 +71,9 @@ connectDB().then(async () => {
     next();
   });
 
-  const limiter = rateLimit({
-    windowMs: sessionTimeoutMinutes * 60 * 1000,
-    max: 200, // limit each IP to 200 requests per windowMs
-    message: { message: `Too many requests from this IP, please try again after ${sessionTimeoutMinutes} minutes` },
-  });
-  app.use("/api", limiter);
+  // General API Rate Limiter
+  const { apiLimiter } = require("./middleware/rateLimiter");
+  app.use("/api", apiLimiter);
   
   // Health Check Endpoint
   app.get("/api/health", (req, res) => {
