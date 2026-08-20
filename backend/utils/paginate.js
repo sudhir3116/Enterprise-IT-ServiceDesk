@@ -1,4 +1,36 @@
 /**
+ * Parse ?page=&limit= with defaults page=1, limit=20, max 100.
+ * Throws a 400-style error when limit exceeds 100.
+ */
+const parsePagination = (queryParams = {}) => {
+  const page = Math.max(1, parseInt(queryParams.page, 10) || 1);
+  const raw = queryParams.limit !== undefined && queryParams.limit !== ""
+    ? parseInt(queryParams.limit, 10)
+    : 20;
+
+  if (Number.isNaN(raw) || raw < 1) {
+    const err = new Error("limit must be a positive integer");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (raw > 100) {
+    const err = new Error("limit cannot exceed 100");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return { page, limit: raw, skip: (page - 1) * raw };
+};
+
+const paginatedPayload = (data, total, page, limit) => ({
+  data,
+  total,
+  page,
+  limit,
+  hasMore: page * limit < total,
+});
+
+/**
  * Unified Mongoose pagination and search helper.
  *
  * @param {MongooseModel} model       - Target Mongoose model
@@ -7,9 +39,7 @@
  * @param {Array<string>} searchFields- Array of string fields to match on search (e.g. ['title', 'ticketNumber'])
  */
 const paginateQuery = async (model, baseFilter = {}, queryParams = {}, searchFields = []) => {
-  const page  = Math.max(1, parseInt(queryParams.page) || 1);
-  const limit = Math.min(100, Math.max(1, parseInt(queryParams.limit) || 20));
-  const skip  = (page - 1) * limit;
+  const { page, limit, skip } = parsePagination(queryParams);
 
   const filter = { ...baseFilter };
 
@@ -48,6 +78,10 @@ const paginateQuery = async (model, baseFilter = {}, queryParams = {}, searchFie
 
   return {
     data: items,
+    total,
+    page,
+    limit,
+    hasMore: page * limit < total,
     pagination: {
       page,
       limit,
@@ -59,4 +93,4 @@ const paginateQuery = async (model, baseFilter = {}, queryParams = {}, searchFie
   };
 };
 
-module.exports = { paginateQuery };
+module.exports = { paginateQuery, parsePagination, paginatedPayload };

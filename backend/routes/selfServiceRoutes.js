@@ -117,7 +117,7 @@ async function generateAnswer(question, context) {
 }
 
 // POST /api/self-service/ask
-router.post("/ask", protect, async (req, res, next) => {
+router.post("/ask", requireRole(), async (req, res, next) => {
   try {
     const { question } = req.body;
     if (!question) {

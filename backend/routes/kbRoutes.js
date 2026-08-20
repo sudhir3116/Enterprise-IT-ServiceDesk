@@ -14,10 +14,10 @@ const {
 const { protect, requireRole } = require("../middleware/authMiddleware");
 
 // Public & Authenticated Article Routes
-router.get("/", protect, getArticles);
-router.get("/search", protect, searchArticles);
-router.get("/:slug", protect, getArticleBySlug);
-router.post("/:id/vote", protect, voteArticleHelpful);
+router.get("/", requireRole(), getArticles);
+router.get("/search", requireRole(), searchArticles);
+router.get("/:slug", requireRole(), getArticleBySlug);
+router.post("/:id/vote", requireRole(), voteArticleHelpful);
 
 // Staff & Admin Article Management
 router.post("/", protect, requireRole("admin", "support_engineer", "agent"), createArticle);

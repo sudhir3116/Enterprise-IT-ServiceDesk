@@ -1,6 +1,113 @@
 const nodemailer = require("nodemailer");
+const EmailLog = require("../models/EmailLog");
 
-const sendEmail = async (to, subject, content) => {
+const DEMO_DOMAINS = [
+  "company.com",
+  "test.com",
+  "example.com",
+  "example.org",
+  "example.net",
+  "cartrabbit.com",
+  "shopdemo.com",
+  "domain.com",
+  "sample.com",
+  "invalid",
+  "localhost",
+  "mydomain.com",
+  "testdomain.com",
+  "demo.com",
+];
+
+const isEmailNotificationsEnabled = () => {
+  if (process.env.ENABLE_EMAIL_NOTIFICATIONS !== undefined) {
+    return process.env.ENABLE_EMAIL_NOTIFICATIONS === "true" || process.env.ENABLE_EMAIL_NOTIFICATIONS === "1";
+  }
+  // Default: false in development/test, true in production
+  return process.env.NODE_ENV === "production";
+};
+
+const isValidRecipientEmail = (to) => {
+  if (!to || typeof to !== "string") return false;
+  const clean = to.trim().toLowerCase();
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(clean)) return false;
+
+  const domain = clean.split("@")[1];
+  if (!domain || DEMO_DOMAINS.includes(domain)) {
+    return false;
+  }
+
+  return true;
+};
+
+const recordEmailLog = async ({ recipient, subject, emailType, status, errorMessage, ticketId, organizationId }) => {
+  try {
+    await EmailLog.create({
+      ticketId: ticketId || null,
+      organizationId: organizationId || null,
+      recipient: recipient || "unknown",
+      subject: subject || "No Subject",
+      emailType: emailType || subject || "general",
+      status: status.toUpperCase(),
+      sentAt: new Date(),
+      timestamp: new Date(),
+      errorMessage: errorMessage || "",
+    });
+  } catch (err) {
+    console.error("[EmailLog] Log creation failed:", err.message);
+  }
+};
+
+const sendEmail = async (to, subject, content, options = {}) => {
+  const { ticketId, organizationId, emailType } = options;
+
+  // 1. Check if email notifications are enabled globally
+  if (!isEmailNotificationsEnabled()) {
+    console.log(`[Email] SKIPPED (Notifications Disabled): to=${to} | subject="${subject}"`);
+    await recordEmailLog({
+      recipient: to,
+      subject,
+      emailType,
+      status: "SKIPPED",
+      errorMessage: "Email notifications disabled via ENABLE_EMAIL_NOTIFICATIONS=false",
+      ticketId,
+      organizationId,
+    });
+    return { success: false, status: "SKIPPED", reason: "disabled" };
+  }
+
+  // 2. Validate recipient email & check for fake/demo domains
+  if (!isValidRecipientEmail(to)) {
+    console.log(`[Email] SKIPPED (Invalid or Demo Domain): to=${to} | subject="${subject}"`);
+    await recordEmailLog({
+      recipient: to,
+      subject,
+      emailType,
+      status: "SKIPPED",
+      errorMessage: `Recipient '${to}' rejected: invalid format or fake demo domain`,
+      ticketId,
+      organizationId,
+    });
+    return { success: false, status: "SKIPPED", reason: "invalid_recipient" };
+  }
+
+  // 3. Test environment bypass
+  if (process.env.NODE_ENV === "test") {
+    console.log(`[Email] Test Mode — Bypassed actual SMTP send to ${to}`);
+    await recordEmailLog({
+      recipient: to,
+      subject,
+      emailType,
+      status: "SENT",
+      errorMessage: "Test mode mock send",
+      ticketId,
+      organizationId,
+    });
+    return { success: true, status: "SENT" };
+  }
+
+  // 4. Send via Nodemailer Transporter
   try {
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -53,15 +160,30 @@ Please do not reply directly to this email.
       mailOptions.text = processedContent;
     }
 
-    if (process.env.NODE_ENV === "test") {
-      console.log(`[Email] Test Mode — Bypassed actual SMTP send to ${to}`);
-      return;
-    }
-
     await transporter.sendMail(mailOptions);
     console.log(`[Email] Sent successfully to ${to}`);
+    await recordEmailLog({
+      recipient: to,
+      subject,
+      emailType,
+      status: "SENT",
+      errorMessage: "",
+      ticketId,
+      organizationId,
+    });
+    return { success: true, status: "SENT" };
   } catch (error) {
     console.error(`[Email] Error sending email to ${to}:`, error.message);
+    await recordEmailLog({
+      recipient: to,
+      subject,
+      emailType,
+      status: "FAILED",
+      errorMessage: error.message,
+      ticketId,
+      organizationId,
+    });
+    return { success: false, status: "FAILED", error: error.message };
   }
 };
 
@@ -93,7 +215,7 @@ const sendApprovalEmail = async (user, assignedRole, orgName = "Acme Global Ente
     </body>
     </html>
   `;
-  await sendEmail(user.email, subject, html);
+  await sendEmail(user.email, subject, html, { emailType: "account_approval" });
 };
 
 const sendRejectionEmail = async (user, reason = "") => {
@@ -112,9 +234,11 @@ const sendRejectionEmail = async (user, reason = "") => {
     </body>
     </html>
   `;
-  await sendEmail(user.email, subject, html);
+  await sendEmail(user.email, subject, html, { emailType: "account_rejection" });
 };
 
 module.exports = sendEmail;
 module.exports.sendApprovalEmail = sendApprovalEmail;
 module.exports.sendRejectionEmail = sendRejectionEmail;
+module.exports.isEmailNotificationsEnabled = isEmailNotificationsEnabled;
+module.exports.isValidRecipientEmail = isValidRecipientEmail;

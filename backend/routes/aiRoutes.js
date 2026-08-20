@@ -6,9 +6,9 @@ const {
   getAITicketAssistance,
 } = require("../controllers/kbController");
 
-const { protect } = require("../middleware/authMiddleware");
+const { requireRole } = require("../middleware/authMiddleware");
 
-router.post("/suggest", protect, getAISuggestions);
-router.post("/ticket-assist", protect, getAITicketAssistance);
+router.post("/suggest", requireRole(), getAISuggestions);
+router.post("/ticket-assist", requireRole(), getAITicketAssistance);
 
 module.exports = router;

@@ -8,7 +8,7 @@ const {
 } = require("../controllers/organizationController");
 const { protect, requireRole } = require("../middleware/authMiddleware");
 
-router.get("/current", protect, getCurrentOrganization);
+router.get("/current", requireRole(), getCurrentOrganization);
 router.put("/current", protect, requireRole("admin"), updateCurrentOrganization);
 
 // Administrative organization routes

@@ -162,9 +162,17 @@ class SlaService {
 
       for (const ticket of activeTickets) {
         let updated = false;
+        let shouldNotifyResponse = false;
+        let shouldNotifyResolution = false;
 
         if (!ticket.sla) {
-          ticket.sla = { breached: false, responseBreached: false, resolutionBreached: false };
+          ticket.sla = {
+            breached: false,
+            responseBreached: false,
+            resolutionBreached: false,
+            responseBreachNotified: false,
+            resolutionBreachNotified: false,
+          };
         }
 
         // Check Response Breach
@@ -172,15 +180,15 @@ class SlaService {
           ticket.sla.firstResponseDue &&
           !ticket.sla.firstRespondedAt &&
           now > new Date(ticket.sla.firstResponseDue) &&
-          !ticket.sla.responseBreached
+          !ticket.sla.responseBreached &&
+          !ticket.sla.responseBreachNotified
         ) {
           ticket.sla.responseBreached = true;
+          ticket.sla.responseBreachNotified = true;
           ticket.sla.breached = true;
           ticket.slaBreached = true;
           updated = true;
-
-          // Dispatch SLA Response Breach Notification
-          await notificationService.notifySlaBreach(ticket, "response");
+          shouldNotifyResponse = true;
         }
 
         // Check Resolution Breach
@@ -188,20 +196,22 @@ class SlaService {
           ticket.sla.resolutionDue &&
           !ticket.resolvedAt &&
           now > new Date(ticket.sla.resolutionDue) &&
-          !ticket.sla.resolutionBreached
+          !ticket.sla.resolutionBreached &&
+          !ticket.sla.resolutionBreachNotified
         ) {
           ticket.sla.resolutionBreached = true;
+          ticket.sla.resolutionBreachNotified = true;
           ticket.sla.breached = true;
           ticket.slaBreached = true;
           updated = true;
-
-          // Dispatch SLA Resolution Breach Notification
-          await notificationService.notifySlaBreach(ticket, "resolution");
+          shouldNotifyResolution = true;
         }
 
         if (updated) {
+          // Persist DB state first so flag is stored before dispatching notification
           await ticket.save();
           breachesDetected++;
+
           await logAudit({
             entity: "Ticket",
             entityId: ticket._id,
@@ -213,6 +223,19 @@ class SlaService {
               resolutionBreached: ticket.sla.resolutionBreached,
             },
           }).catch(() => {});
+
+          // Safely dispatch notifications without blocking DB updates
+          if (shouldNotifyResponse) {
+            await notificationService.notifySlaBreach(ticket, "response").catch((err) => {
+              console.warn(`[SLA Engine] Response breach notification suppressed or failed for ${ticket.ticketNumber}:`, err.message);
+            });
+          }
+
+          if (shouldNotifyResolution) {
+            await notificationService.notifySlaBreach(ticket, "resolution").catch((err) => {
+              console.warn(`[SLA Engine] Resolution breach notification suppressed or failed for ${ticket.ticketNumber}:`, err.message);
+            });
+          }
         }
       }
 

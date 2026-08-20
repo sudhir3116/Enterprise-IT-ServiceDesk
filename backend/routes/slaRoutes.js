@@ -9,7 +9,7 @@ const {
 } = require("../controllers/slaController");
 const { protect, requireRole } = require("../middleware/authMiddleware");
 
-router.get("/", protect, getSlaPolicies);
+router.get("/", requireRole(), getSlaPolicies);
 router.post("/", protect, requireRole("admin"), createSlaPolicy);
 router.post("/seed-defaults", protect, requireRole("admin"), seedDefaultSlaPolicies);
 router.put("/:id", protect, requireRole("admin"), updateSlaPolicy);

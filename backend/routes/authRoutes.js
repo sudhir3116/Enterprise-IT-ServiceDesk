@@ -40,7 +40,7 @@ const { authLimiter } = require("../middleware/rateLimiter");
 
 router.post("/register", authLimiter, registerValidator, registerUser);
 router.post("/login", authLimiter, loginValidator, loginUser);
-router.post("/logout", logoutUser);
+router.post("/logout", requireRole(), logoutUser);
 router.post("/refresh", refreshToken);
 router.post("/forgot-password", authLimiter, forgotPasswordValidator, forgotPassword);
 router.post("/reset-password", authLimiter, resetPasswordValidator, resetPassword);
@@ -50,26 +50,26 @@ router.get("/verify-email/:token", verifyEmail);
 router.post("/resend-verification", resendVerificationValidator, resendVerificationEmail);
 
 // User & Profile Management
-router.get("/me", protect, getMe);
+router.get("/me", requireRole(), getMe);
 router.get("/approval-status", (req, res, next) => {
   if (req.query && req.query.email) {
     return getApprovalStatus(req, res, next);
   }
   return protect(req, res, () => getApprovalStatus(req, res, next));
 });
-router.get("/profile", protect, getProfile);
+router.get("/profile", requireRole(), getProfile);
 router.get("/users", protect, requireRole("admin", "agent"), getAllUsers);
 router.post("/users", protect, requireRole("admin"), createUserByAdmin);
 router.put("/users/:id/role", protect, requireRole("admin"), updateUserRole);
 router.delete("/users/:id", protect, requireRole("admin"), deleteUserByAdmin);
-router.put("/profile", protect, updateUserProfile);
-router.patch("/profile", protect, updateUserProfile);
-router.put("/users/:id/password", protect, updatePassword);
-router.delete("/delete-account", protect, deleteAccount);
+router.put("/profile", requireRole(), updateUserProfile);
+router.patch("/profile", requireRole(), updateUserProfile);
+router.put("/users/:id/password", requireRole(), updatePassword);
+router.delete("/delete-account", requireRole(), deleteAccount);
 
 // Session Management
-router.get("/sessions", protect, getActiveSessions);
-router.delete("/sessions/:sessionId", protect, revokeSession);
-router.delete("/sessions", protect, revokeAllSessions);
+router.get("/sessions", requireRole(), getActiveSessions);
+router.delete("/sessions/:sessionId", requireRole(), revokeSession);
+router.delete("/sessions", requireRole(), revokeAllSessions);
 
 module.exports = router;

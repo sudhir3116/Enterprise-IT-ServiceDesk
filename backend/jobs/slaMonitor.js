@@ -1,25 +1,28 @@
 const slaService = require("../services/slaService");
+const cron = require("node-cron");
 
-let intervalHandle = null;
+let cronTask = null;
 
-function startSlaMonitor(intervalMs = 60000) {
-  console.log("⏰ [SLA Monitor Job] Initializing background SLA breach monitoring service...");
+function startSlaMonitor() {
+  console.log("⏰ [SLA Monitor Job] Initializing background SLA breach monitoring (every 15 minutes)...");
 
-  // Run initial breach evaluation on startup
-  slaService.evaluateBreaches();
+  slaService.evaluateBreaches().catch(err => {
+    console.error("⏰ [SLA Monitor Job] Initial breach evaluation failed:", err.message);
+  });
 
-  // Schedule periodic monitoring
-  if (!intervalHandle) {
-    intervalHandle = setInterval(() => {
-      slaService.evaluateBreaches();
-    }, intervalMs);
+  if (!cronTask) {
+    cronTask = cron.schedule("*/15 * * * *", () => {
+      slaService.evaluateBreaches().catch(err => {
+        console.error("⏰ [SLA Monitor Job] Scheduled breach evaluation failed:", err.message);
+      });
+    });
   }
 }
 
 function stopSlaMonitor() {
-  if (intervalHandle) {
-    clearInterval(intervalHandle);
-    intervalHandle = null;
+  if (cronTask) {
+    cronTask.stop();
+    cronTask = null;
     console.log("⏰ [SLA Monitor Job] Stopped background monitoring timer.");
   }
 }

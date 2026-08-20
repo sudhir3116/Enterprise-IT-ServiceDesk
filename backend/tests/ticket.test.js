@@ -54,7 +54,7 @@ describe("Ticket Lifecycle Integration Tests", () => {
       .set("Authorization", `Bearer ${adminToken}`);
 
     expect(res.statusCode).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(Array.isArray(res.body.data || res.body)).toBe(true);
   });
 
   test("PUT /api/tickets/:id/investigation — Save investigation details", async () => {

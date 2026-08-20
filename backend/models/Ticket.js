@@ -138,6 +138,8 @@ const ticketSchema = new mongoose.Schema(
       breached: { type: Boolean, default: false },
       responseBreached: { type: Boolean, default: false },
       resolutionBreached: { type: Boolean, default: false },
+      responseBreachNotified: { type: Boolean, default: false },
+      resolutionBreachNotified: { type: Boolean, default: false },
     },
 
     // Tags for advanced filtering
@@ -190,8 +192,8 @@ ticketSchema.index({ organizationId: 1, status: 1, createdAt: -1 });
 ticketSchema.index({ organizationId: 1, createdBy: 1, createdAt: -1 });
 ticketSchema.index({ organizationId: 1, assignedTo: 1, status: 1 });
 
-// ── SLA deadline helper map ────────────────────────────────────────────────────
-const SLA_HOURS = { Critical: 4, High: 24, Medium: 72, Low: 120 };
+// ── SLA deadline helper map (hours) — matches platform SLA definitions
+const SLA_HOURS = { Critical: 4, High: 8, Medium: 24, Low: 72 };
 
 // ── Pre-save hook: sequential ticket number + SLA deadline ───────────────────
 ticketSchema.pre("save", async function () {

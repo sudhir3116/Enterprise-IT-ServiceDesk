@@ -7,8 +7,8 @@ const {
 } = require("../controllers/notificationController");
 const { protect } = require("../middleware/authMiddleware");
 
-router.get("/", protect, getNotifications);
-router.put("/read", protect, markAllRead);
-router.put("/:id/read", protect, markSingleRead);
+router.get("/", requireRole(), getNotifications);
+router.put("/read", requireRole(), markAllRead);
+router.put("/:id/read", requireRole(), markSingleRead);
 
 module.exports = router;

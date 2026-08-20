@@ -110,8 +110,16 @@ const getTickets = async (req, res, next) => {
       })
     );
 
-    // Return plain array to remain compatible with existing dashboards
-    res.status(200).json(ticketsWithComments);
+      // Return paginated response for clients
+      const total = await Ticket.countDocuments(filter);
+      res.status(200).json({
+        data: ticketsWithComments,
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
+      });
   } catch (error) {
     next(error);
   }
@@ -483,6 +491,41 @@ const addComment = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+// Get comments for a ticket (with role-based internal filter)
+const getCommentsForTicket = async (req, res, next) => {
+  try {
+    const ticket = await Ticket.findOne({ _id: req.params.id, isDeleted: false });
+    if (!ticket) return res.status(404).json({ message: 'Ticket Not Found' });
+
+    // Authorization — if requester/employee/customer, only allow on their own ticket
+    if (["customer", "requester", "employee"].includes(req.user.role) && ticket.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access Forbidden' });
+    }
+
+    const commentsQuery = { ticket: ticket._id };
+    if (["customer", "requester", "employee"].includes(req.user.role)) {
+      commentsQuery.isInternal = false;
+    }
+
+    const dbComments = await Comment.find(commentsQuery)
+      .populate('author', 'name email role')
+      .sort({ createdAt: 1 });
+
+    const commentsToReturn = dbComments.map(c => ({
+      _id: c._id,
+      text: c.body,
+      user: c.author,
+      name: c.author ? c.author.name : 'System',
+      isInternal: c.isInternal,
+      createdAt: c.createdAt,
+    }));
+
+    res.status(200).json({ comments: commentsToReturn });
+  } catch (err) {
+    next(err);
   }
 };
 

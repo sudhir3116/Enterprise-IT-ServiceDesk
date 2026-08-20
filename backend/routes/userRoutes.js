@@ -14,8 +14,8 @@ const {
 const { protect, requireRole } = require("../middleware/authMiddleware");
 
 // Self Profile Updates (PATCH /api/users/profile & PUT /api/users/profile)
-router.patch("/profile", protect, updateUserProfile);
-router.put("/profile", protect, updateUserProfile);
+router.patch("/profile", requireRole(), updateUserProfile);
+router.put("/profile", requireRole(), updateUserProfile);
 
 // GET /api/users - Admin & Support Engineer
 router.get("/", protect, requireRole("admin", "support_engineer", "agent"), getAllUsers);

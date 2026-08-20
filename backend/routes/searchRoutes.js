@@ -12,7 +12,7 @@ const { protect, requireRole } = require("../middleware/authMiddleware");
  * - Admins/Engineers: search tickets, KB articles, users
  * - Employees: search only their own tickets + KB articles
  */
-router.get("/", protect, async (req, res, next) => {
+router.get("/", requireRole(), async (req, res, next) => {
   try {
     const { q, type = "all", limit = 10 } = req.query;
     if (!q || q.trim().length < 2) {

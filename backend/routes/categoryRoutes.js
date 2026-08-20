@@ -5,7 +5,7 @@ const { protect, requireRole } = require('../middleware/authMiddleware');
 const auditLogMiddleware = require('../middleware/auditLogMiddleware');
 
 // Get categories (could be public/protected depending on need, but let's keep it protected)
-router.get('/', protect, categoryController.getCategories);
+router.get('/', requireRole(), categoryController.getCategories);
 
 // Only Admins can modify categories
 router.use(protect, requireRole('admin'));

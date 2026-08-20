@@ -100,16 +100,33 @@ const loginUser = async (req, res, next) => {
   }
 };
 
-// Get All Users — emits normalized roles
+// Get All Users — paginated and emits normalized roles
 const getAllUsers = async (req, res, next) => {
   try {
-    const users = await User.find({}, "-password").sort({ createdAt: -1 });
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const skip = (page - 1) * limit;
+
+    const filter = {};
+    const [total, users] = await Promise.all([
+      User.countDocuments(filter),
+      User.find(filter, "-password").sort({ createdAt: -1 }).skip(skip).limit(limit),
+    ]);
+
     const normalized = users.map(u => ({
       ...u.toObject(),
       role: normalizeRole(u.role),
       dbRole: u.role,
     }));
-    res.status(200).json(normalized);
+
+    res.status(200).json({
+      data: normalized,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasMore: page * limit < total,
+    });
   } catch (error) {
     next(error);
   }
@@ -465,7 +482,14 @@ const deleteAccount = async (req, res, next) => {
       throw new Error("Invalid Password. Verification failed.");
     }
 
-    await Ticket.deleteMany({ createdBy: req.user._id });
+    // Soft-delete tickets created by this user instead of hard delete
+    await Ticket.updateMany(
+      { createdBy: req.user._id, isDeleted: false },
+      {
+        $set: { isDeleted: true },
+        $push: { history: { action: 'Ticket Deleted (Soft Delete)', performedBy: req.user.name, date: new Date() } }
+      }
+    );
     
     // Write AuditLog for account deletion
     await logAudit({
@@ -501,7 +525,14 @@ const deleteUserByAdmin = async (req, res, next) => {
     }
 
     // Cascading deletes for tickets, comments references, and notifications
-    await Ticket.deleteMany({ createdBy: user._id });
+    // Soft-delete tickets created by this user
+    await Ticket.updateMany(
+      { createdBy: user._id, isDeleted: false },
+      {
+        $set: { isDeleted: true },
+        $push: { history: { action: 'Ticket Deleted (Soft Delete) by Admin', performedBy: req.user.name, date: new Date() } }
+      }
+    );
     await Notification.deleteMany({ recipient: user._id });
 
     // Write AuditLog for admin deleting user

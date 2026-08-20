@@ -41,9 +41,49 @@ class EmailService {
    * Core email dispatcher with SMTP integration, template formatting, and EmailLog auditing.
    */
   async sendEmail(to, subject, content, options = {}) {
-    const { organizationId, ticketId, messageId } = options;
-    let status = "sent";
+    const { organizationId, ticketId, messageId, emailType } = options;
+    const { isEmailNotificationsEnabled, isValidRecipientEmail } = require("../utils/sendEmail");
+
+    let status = "SENT";
     let errorMessage = "";
+
+    // 1. Check global flag
+    if (!isEmailNotificationsEnabled()) {
+      status = "SKIPPED";
+      errorMessage = "Email notifications disabled via ENABLE_EMAIL_NOTIFICATIONS=false";
+      console.log(`[EmailService] SKIPPED (Notifications Disabled): to=${to} | subject="${subject}"`);
+      await EmailLog.create({
+        ticketId: ticketId || null,
+        organizationId: organizationId || null,
+        recipient: to || "unknown",
+        subject: subject || "No Subject",
+        emailType: emailType || subject || "general",
+        status: "SKIPPED",
+        sentAt: new Date(),
+        timestamp: new Date(),
+        errorMessage,
+      }).catch(() => {});
+      return false;
+    }
+
+    // 2. Validate recipient address & fake/demo domain
+    if (!isValidRecipientEmail(to)) {
+      status = "SKIPPED";
+      errorMessage = `Recipient '${to}' rejected: invalid format or fake demo domain`;
+      console.log(`[EmailService] SKIPPED (Invalid or Demo Domain): to=${to} | subject="${subject}"`);
+      await EmailLog.create({
+        ticketId: ticketId || null,
+        organizationId: organizationId || null,
+        recipient: to || "unknown",
+        subject: subject || "No Subject",
+        emailType: emailType || subject || "general",
+        status: "SKIPPED",
+        sentAt: new Date(),
+        timestamp: new Date(),
+        errorMessage,
+      }).catch(() => {});
+      return false;
+    }
 
     try {
       const config = await this.getConfig(organizationId);
@@ -95,7 +135,7 @@ class EmailService {
         console.log(`[EmailService Mock] Dispatching email to ${to} | Subject: "${subject}"`);
       }
     } catch (err) {
-      status = "failed";
+      status = "FAILED";
       errorMessage = err.message;
       console.error(`[EmailService] Failed to send email to ${to}:`, err.message);
     } finally {
@@ -105,13 +145,15 @@ class EmailService {
         organizationId: organizationId || null,
         recipient: to,
         subject,
+        emailType: emailType || subject || "general",
         status,
         sentAt: new Date(),
+        timestamp: new Date(),
         errorMessage
       }).catch(() => {});
     }
 
-    return status === "sent";
+    return status === "SENT";
   }
 
   // ── Outbound Notification Triggers ─────────────────────────────────────────

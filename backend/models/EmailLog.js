@@ -21,16 +21,25 @@ const emailLogSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    emailType: {
+      type: String,
+      default: "general",
+      index: true,
+    },
     status: {
       type: String,
-      enum: ["sent", "failed"],
-      default: "sent",
+      enum: ["SENT", "FAILED", "SKIPPED", "sent", "failed", "skipped"],
+      default: "SENT",
       index: true,
     },
     sentAt: {
       type: Date,
       default: Date.now,
       index: true,
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
     },
     errorMessage: {
       type: String,

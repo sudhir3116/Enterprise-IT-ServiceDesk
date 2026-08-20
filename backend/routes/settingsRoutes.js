@@ -5,7 +5,7 @@ const { protect, requireRole } = require('../middleware/authMiddleware');
 const auditLogMiddleware = require('../middleware/auditLogMiddleware');
 
 // Get settings (public/unprotected for login screen like org name? Actually, keep it protected for now)
-router.get('/', protect, settingsController.getSettings);
+router.get('/', requireRole(), settingsController.getSettings);
 
 // Update settings (Admin only)
 router.use(protect, requireRole('admin'));

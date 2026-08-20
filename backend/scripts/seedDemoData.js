@@ -42,7 +42,7 @@ async function seedDemoData() {
     const usersData = [
       {
         name: "Cartrabbit Admin",
-        email: "admin@cartrabbit.com",
+        email: "demo.admin@gmail.com",
         mobileNumber: "9876543210",
         password: hashedPassword,
         role: "admin",
@@ -54,7 +54,7 @@ async function seedDemoData() {
       },
       {
         name: "Support Engineer Alex",
-        email: "engineer@cartrabbit.com",
+        email: "demo.agent@gmail.com",
         mobileNumber: "9876543211",
         password: hashedPassword,
         role: "support_engineer",
@@ -67,7 +67,7 @@ async function seedDemoData() {
       },
       {
         name: "Developer Chris",
-        email: "developer@cartrabbit.com",
+        email: "demo.dev@gmail.com",
         mobileNumber: "9876543212",
         password: hashedPassword,
         role: "developer",
@@ -79,7 +79,7 @@ async function seedDemoData() {
       },
       {
         name: "Merchant User (Shopify Store)",
-        email: "customer@shopdemo.com",
+        email: "demo.requester@gmail.com",
         mobileNumber: "9876543213",
         password: hashedPassword,
         role: "customer",
@@ -239,10 +239,10 @@ async function seedDemoData() {
 
     console.log("\n=== CARTRABBIT COMMERCE DEMO DATA SEEDED SUCCESSFULLY! ===");
     console.log("\nDemo Credentials:");
-    console.log("  Admin:     admin@cartrabbit.com / Password123!");
-    console.log("  Engineer:  engineer@cartrabbit.com / Password123!");
-    console.log("  Developer: developer@cartrabbit.com / Password123!");
-    console.log("  Customer:  customer@shopdemo.com / Password123!");
+    console.log("  Admin:     demo.admin@gmail.com / Password123!");
+    console.log("  Engineer:  demo.agent@gmail.com / Password123!");
+    console.log("  Developer: demo.dev@gmail.com / Password123!");
+    console.log("  Customer:  demo.requester@gmail.com / Password123!");
 
     process.exit(0);
   } catch (err) {

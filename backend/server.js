@@ -45,11 +45,13 @@ connectDB().then(async () => {
   const clientUrls = (process.env.CLIENT_URL || "http://localhost:5173").split(",").map(u => u.trim());
   app.use(cors({
     origin: (origin, callback) => {
-      if (!origin || clientUrls.includes(origin) || process.env.NODE_ENV !== "production") {
-        callback(null, true);
-      } else {
-        callback(null, true);
+      // Non-browser clients (no Origin header)
+      if (!origin) return callback(null, true);
+      if (clientUrls.includes(origin)) return callback(null, true);
+      if (process.env.NODE_ENV !== "production" && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        return callback(null, true);
       }
+      callback(new Error("Not allowed by CORS"));
     },
     credentials: true
   }));

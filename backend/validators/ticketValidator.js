@@ -63,6 +63,35 @@ const createTicketValidator = [
   },
 ];
 
+// Validator for updating ticket status/assignment
+const updateTicketValidator = [
+  body("status").optional().isString().withMessage("Invalid status value"),
+  body("assignedTo").optional().isMongoId().withMessage("assignedTo must be a valid user id"),
+  body("dueDate").optional().isISO8601().toDate().withMessage("Invalid dueDate"),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: errors.array()[0].msg, errors: errors.array() });
+    }
+    next();
+  },
+];
+
+// Validator for adding comments
+const addCommentValidator = [
+  body("text").trim().notEmpty().withMessage("Comment text is required").isLength({ max: 5000 }).withMessage("Comment is too long"),
+  body("isInternal").optional().isBoolean().withMessage("isInternal must be boolean"),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: errors.array()[0].msg, errors: errors.array() });
+    }
+    next();
+  },
+];
+
 module.exports = {
   createTicketValidator,
+  updateTicketValidator,
+  addCommentValidator,
 };

@@ -13,10 +13,10 @@ const {
 const { protect, requireRole } = require("../middleware/authMiddleware");
 
 // Any authenticated user can view, submit, and vote on feedback
-router.get(  "/",           protect, getFeedback);
-router.get(  "/:id",        protect, getFeedbackById);
-router.post( "/",           protect, submitFeedback);
-router.post( "/:id/vote",   protect, voteFeedback);
+router.get(  "/",           requireRole(), getFeedback);
+router.get(  "/:id",        requireRole(), getFeedbackById);
+router.post( "/",           requireRole(), submitFeedback);
+router.post( "/:id/vote",   requireRole(), voteFeedback);
 
 // Only admins can update status/response or delete feedback
 router.put(    "/:id", protect, requireRole("admin"), updateFeedback);
