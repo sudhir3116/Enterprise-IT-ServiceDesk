@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const KnowledgeArticle = require("../models/KnowledgeArticle");
-const { protect } = require("../middleware/authMiddleware");
+const { protect, requireRole } = require("../middleware/authMiddleware");
 
 // Cosine Similarity utility
 function cosineSimilarity(vecA, vecB) {
