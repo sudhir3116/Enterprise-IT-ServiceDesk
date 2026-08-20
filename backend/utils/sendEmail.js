@@ -19,11 +19,7 @@ const DEMO_DOMAINS = [
 ];
 
 const isEmailNotificationsEnabled = () => {
-  if (process.env.ENABLE_EMAIL_NOTIFICATIONS !== undefined) {
-    return process.env.ENABLE_EMAIL_NOTIFICATIONS === "true" || process.env.ENABLE_EMAIL_NOTIFICATIONS === "1";
-  }
-  // Default: false in development/test, true in production
-  return process.env.NODE_ENV === "production";
+  return process.env.ENABLE_EMAIL_NOTIFICATIONS === "true" || process.env.ENABLE_EMAIL_NOTIFICATIONS === "1";
 };
 
 const isValidRecipientEmail = (to) => {
