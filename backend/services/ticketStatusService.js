@@ -3,13 +3,16 @@ const { logAudit } = require("../utils/auditLogger");
 const notificationService = require("./notificationService");
 
 const VALID_TRANSITIONS = {
-  New: ["Assigned", "In Progress", "Pending", "Waiting for Customer", "Closed"],
-  Assigned: ["In Progress", "Waiting for Customer", "Pending", "Resolved", "Closed"],
-  "In Progress": ["Waiting for Customer", "Pending", "Resolved", "Closed", "Assigned"],
-  Pending: ["In Progress", "Assigned", "Resolved", "Closed", "Waiting for Customer"],
+  Open: ["Assigned", "In Progress", "Pending", "Waiting for User", "Waiting for Customer", "Escalated", "Closed"],
+  New: ["Assigned", "In Progress", "Pending", "Waiting for User", "Waiting for Customer", "Escalated", "Closed"],
+  Assigned: ["In Progress", "Waiting for User", "Waiting for Customer", "Pending", "Resolved", "Escalated", "Closed"],
+  "In Progress": ["Waiting for User", "Waiting for Customer", "Pending", "Resolved", "Escalated", "Closed", "Assigned"],
+  Pending: ["In Progress", "Assigned", "Resolved", "Closed", "Waiting for User", "Waiting for Customer"],
+  "Waiting for User": ["In Progress", "Assigned", "Resolved", "Closed"],
   "Waiting for Customer": ["In Progress", "Assigned", "Resolved", "Closed"],
+  Escalated: ["In Progress", "Assigned", "Resolved", "Closed"],
   Resolved: ["Closed", "In Progress", "Assigned"],
-  Closed: ["In Progress"] // Allowed with explicit admin/agent action
+  Closed: ["In Progress"]
 };
 
 class TicketStatusService {

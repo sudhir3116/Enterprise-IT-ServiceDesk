@@ -190,4 +190,7 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+userSchema.index({ organizationId: 1, role: 1 });
+userSchema.index({ accountStatus: 1 });
+
 module.exports = mongoose.model("User", userSchema);

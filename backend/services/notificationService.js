@@ -7,6 +7,7 @@ class NotificationService {
    */
   async createNotification({ userId, title, message, type = "general", ticketId, userEmail, idempotencyKey }) {
     try {
+      if (!userId) return null;
       // 1. In-App Notification
       const notif = await Notification.create({
         userId,
@@ -93,6 +94,23 @@ class NotificationService {
       ticketId: ticket._id,
       userEmail: customer.email,
     });
+  }
+
+  async notifyStatusChanged(ticket, oldStatus, newStatus) {
+    if (!ticket) return;
+    const title = `Ticket Status Updated: #${ticket.ticketNumber}`;
+    const message = `Your ticket "${ticket.title}" status changed from "${oldStatus}" to "${newStatus}".`;
+
+    if (ticket.createdBy) {
+      await this.createNotification({
+        userId: ticket.createdBy._id || ticket.createdBy,
+        title,
+        message,
+        type: "status_changed",
+        ticketId: ticket._id,
+        userEmail: ticket.createdBy.email,
+      });
+    }
   }
 }
 

@@ -18,7 +18,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["ticket_created", "ticket_assigned", "sla_warning", "sla_breached", "ticket_resolved", "general"],
+      enum: ["ticket_created", "ticket_assigned", "sla_warning", "sla_breached", "sla_response_breached", "sla_resolution_breached", "status_changed", "ticket_resolved", "general"],
       default: "general",
     },
     read: {

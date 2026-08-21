@@ -537,7 +537,13 @@ const getCommentsForTicket = async (req, res, next) => {
 // Get Ticket By ID
 const getTicketById = async (req, res, next) => {
   try {
-    const ticket = await Ticket.findOne({ _id: req.params.id, isDeleted: false })
+    const orgId = req.user.organizationId?._id || req.user.organizationId;
+    const ticketFilter = { _id: req.params.id, isDeleted: false };
+    if (orgId && req.user.role !== "admin") {
+      ticketFilter.$or = [{ organizationId: orgId }, { organizationId: { $exists: false } }, { organizationId: null }];
+    }
+
+    const ticket = await Ticket.findOne(ticketFilter)
       .populate("createdBy", "name email role mobileNumber department designation employeeId")
       .populate("assignedTo", "name email role department designation employeeId");
 

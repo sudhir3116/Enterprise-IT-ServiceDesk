@@ -96,7 +96,7 @@ const VALID_TRANSITIONS = {
   Fixed:       ["Testing", "In Progress"],
   Testing:     ["Verified", "In Progress"],
   Verified:    ["Closed"],
-  Closed:      [],
+  Closed:      ["Open", "In Progress"],
 };
 
 const updateBug = async (bugId, data, user) => {

@@ -21,7 +21,10 @@ const getBugById = async (req, res, next) => {
   try {
     const orgId = req.user.organizationId?._id || req.user.organizationId;
 
-    const bugQuery = { _id: req.params.id, organizationId: orgId, isDeleted: false };
+    const bugQuery = { _id: req.params.id, isDeleted: false };
+    if (orgId && req.user.role !== "admin") {
+      bugQuery.$or = [{ organizationId: orgId }, { organizationId: { $exists: false } }, { organizationId: null }];
+    }
 
     // Developers can only see bugs assigned to them
     if (req.user.role === "developer") {
