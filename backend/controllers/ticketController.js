@@ -190,6 +190,11 @@ const updateTicketStatus = async (req, res, next) => {
       ticket.status = targetStatus;
       logs.push(`Status updated from "${oldStatus}" to "${targetStatus}"`);
 
+      await logAction("Ticket", ticket._id, "STATUS_CHANGED", userId, {
+        before: { status: oldStatus },
+        after: { status: targetStatus, ticketNumber: ticket.ticketNumber }
+      }).catch(() => {});
+
       // In-app notification to creator
       try {
         await Notification.create({

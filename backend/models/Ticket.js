@@ -220,9 +220,19 @@ ticketSchema.pre("save", async function () {
   }
 
   // Set SLA deadline if not already set
-  if (this.isNew && !this.dueDate) {
-    const hours = SLA_HOURS[this.priority] || 72;
-    this.dueDate = new Date(Date.now() + hours * 3_600_000);
+  if (this.isNew) {
+    const hours = SLA_HOURS[this.priority] || 24;
+    const now = Date.now();
+    const resolutionDueDate = new Date(now + hours * 3_600_000);
+    if (!this.dueDate) {
+      this.dueDate = resolutionDueDate;
+    }
+    const firstRespMinutes = this.priority === "Critical" ? 15 : (this.priority === "High" ? 60 : 120);
+    const firstResponseDueDate = new Date(now + firstRespMinutes * 60_000);
+
+    this.sla = this.sla || {};
+    if (!this.sla.resolutionDue) this.sla.resolutionDue = resolutionDueDate;
+    if (!this.sla.firstResponseDue) this.sla.firstResponseDue = firstResponseDueDate;
   }
 
   // Mark resolvedAt timestamp when ticket is closed, or clear it if reopened
@@ -236,6 +246,16 @@ ticketSchema.pre("save", async function () {
     }
   }
 });
+
+// ── Virtual: slaDeadline ────────────────────────────────────────────────────────
+ticketSchema.virtual("slaDeadline")
+  .get(function () {
+    return this.dueDate || (this.sla ? this.sla.resolutionDue : null);
+  })
+  .set(function (val) {
+    this.dueDate = val;
+    if (this.sla) this.sla.resolutionDue = val;
+  });
 
 // ── Virtual: SLA status ────────────────────────────────────────────────────────
 ticketSchema.virtual("slaStatus").get(function () {
