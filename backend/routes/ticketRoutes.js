@@ -8,6 +8,7 @@ const {
   updateTicketStatus,
   deleteTicket,
   addComment,
+  deleteComment,
   getTicketById,
   confirmResolution,
   reopenTicket,
@@ -28,6 +29,7 @@ router.post("/", protect, requireRole("customer", "employee", "requester", "supp
 router.get("/", protect, requireRole("employee", "requester", "support_engineer", "agent", "admin"), getTickets);
 router.get("/:id", protect, requireRole("employee", "requester", "support_engineer", "agent", "admin"), getTicketById);
 router.post("/:id/comments", requireRole("employee", "requester", "support_engineer", "agent", "admin"), addCommentValidator, addComment);
+router.delete("/:id/comments/:commentId", protect, requireRole("employee", "requester", "support_engineer", "agent", "admin"), deleteComment);
 
 // Customer resolution confirmation & CSAT rating loops
 router.post("/:id/confirm-resolution", requireRole(), confirmResolution);

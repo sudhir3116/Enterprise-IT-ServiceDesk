@@ -868,12 +868,47 @@ const createArticleFromTicket = async (req, res, next) => {
   }
 };
 
+// Delete Comment (Author or Admin only)
+const deleteComment = async (req, res, next) => {
+  try {
+    const { id: ticketId, commentId } = req.params;
+    const Comment = require("../models/Comment");
+
+    const comment = await Comment.findById(commentId);
+    if (!comment) {
+      return res.status(404).json({ success: false, message: "Comment not found" });
+    }
+
+    const isAuthor = comment.author.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin";
+
+    if (!isAuthor && !isAdmin) {
+      return res.status(403).json({ success: false, message: "Forbidden: You can only delete your own comments" });
+    }
+
+    await Comment.findByIdAndDelete(commentId);
+
+    await Ticket.findByIdAndUpdate(ticketId, {
+      $pull: { comments: { _id: commentId } }
+    });
+
+    await logAction("Comment", commentId, "DELETE_COMMENT", req.user._id, {
+      before: { body: comment.body, author: comment.author }
+    }).catch(() => {});
+
+    res.status(200).json({ success: true, message: "Comment deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createTicket,
   getTickets,
   updateTicketStatus,
   deleteTicket,
   addComment,
+  deleteComment,
   getTicketById,
   confirmResolution,
   reopenTicket,

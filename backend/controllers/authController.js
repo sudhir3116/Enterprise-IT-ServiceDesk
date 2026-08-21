@@ -201,6 +201,18 @@ const updateUserRole = async (req, res, next) => {
       throw new Error("Administrator privileges required");
     }
 
+    // Safety check: Prevent deactivating or demoting the last active admin
+    if (user.role === "admin" && ((role && role !== "admin") || status === "inactive")) {
+      const orgId = user.organizationId?._id || user.organizationId;
+      const adminFilter = { role: "admin", accountStatus: "active", _id: { $ne: user._id } };
+      if (orgId) adminFilter.organizationId = orgId;
+      const otherAdmins = await User.countDocuments(adminFilter);
+      if (otherAdmins === 0) {
+        res.status(400);
+        throw new Error("Cannot deactivate or change the role of the last active administrator");
+      }
+    }
+
     const oldStatus = user.accountStatus;
     const before = {
       role: user.role,

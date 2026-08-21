@@ -8,7 +8,11 @@ const getEmailConfig = async (req, res, next) => {
   try {
     const orgId = req.user.organizationId?._id || req.user.organizationId;
     const config = await emailService.getConfig(orgId);
-    res.status(200).json(config);
+    const sanitized = config.toObject ? config.toObject() : { ...config };
+    if (sanitized.smtpPassword) {
+      sanitized.smtpPassword = "********";
+    }
+    res.status(200).json(sanitized);
   } catch (error) {
     next(error);
   }
@@ -26,7 +30,7 @@ const updateEmailConfig = async (req, res, next) => {
     if (smtpHost) config.smtpHost = smtpHost.trim();
     if (smtpPort) config.smtpPort = Number(smtpPort);
     if (smtpUsername !== undefined) config.smtpUsername = smtpUsername.trim();
-    if (smtpPassword !== undefined) config.smtpPassword = smtpPassword;
+    if (smtpPassword !== undefined && smtpPassword !== "********") config.smtpPassword = smtpPassword;
     if (enabled !== undefined) config.enabled = !!enabled;
     if (templates) config.templates = { ...config.templates, ...templates };
 
