@@ -29,6 +29,10 @@ describe("Product Feedback Integration Tests", () => {
   });
 
   afterAll(async () => {
+    if (feedbackId) {
+      const ProductFeedback = require("../models/ProductFeedback");
+      await ProductFeedback.deleteOne({ _id: feedbackId });
+    }
     await mongoose.connection.close();
   });
 

@@ -43,6 +43,14 @@ describe("Bug Report Lifecycle Integration Tests", () => {
   });
 
   afterAll(async () => {
+    if (bugId) {
+      const BugReport = require("../models/BugReport");
+      await BugReport.deleteOne({ _id: bugId });
+    }
+    if (ticketId) {
+      const Ticket = require("../models/Ticket");
+      await Ticket.deleteOne({ _id: ticketId });
+    }
     await mongoose.connection.close();
   });
 

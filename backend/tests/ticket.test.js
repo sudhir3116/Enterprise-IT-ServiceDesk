@@ -29,6 +29,10 @@ describe("Ticket Lifecycle Integration Tests", () => {
   });
 
   afterAll(async () => {
+    if (createdTicketId) {
+      const Ticket = require("../models/Ticket");
+      await Ticket.deleteOne({ _id: createdTicketId });
+    }
     await mongoose.connection.close();
   });
 
