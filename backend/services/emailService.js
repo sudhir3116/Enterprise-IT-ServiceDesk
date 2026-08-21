@@ -43,6 +43,7 @@ class EmailService {
   async sendEmail(to, subject, content, options = {}) {
     const { organizationId, ticketId, messageId, emailType } = options;
     const { isEmailNotificationsEnabled, isValidRecipientEmail } = require("../utils/sendEmail");
+    const idempotencyKey = options.idempotencyKey || (ticketId ? `${emailType || subject}_${to}_${ticketId}` : null);
 
     let status = "SENT";
     let errorMessage = "";
@@ -62,6 +63,7 @@ class EmailService {
         sentAt: new Date(),
         timestamp: new Date(),
         errorMessage,
+        idempotencyKey,
       }).catch(() => {});
       return false;
     }
@@ -81,8 +83,33 @@ class EmailService {
         sentAt: new Date(),
         timestamp: new Date(),
         errorMessage,
+        idempotencyKey,
       }).catch(() => {});
       return false;
+    }
+
+    // 3. DB-backed Idempotency Check
+    if (idempotencyKey) {
+      const existingLog = await EmailLog.findOne({
+        idempotencyKey,
+        status: { $in: ["SENT", "sent"] },
+      });
+      if (existingLog) {
+        console.log(`[EmailService] SKIPPED (Duplicate Idempotency Key): key='${idempotencyKey}' already sent to ${to}`);
+        await EmailLog.create({
+          ticketId: ticketId || null,
+          organizationId: organizationId || null,
+          recipient: to || "unknown",
+          subject: subject || "No Subject",
+          emailType: emailType || subject || "general",
+          status: "SKIPPED",
+          sentAt: new Date(),
+          timestamp: new Date(),
+          errorMessage: `Duplicate event suppressed by DB idempotency key: ${idempotencyKey}`,
+          idempotencyKey: `skipped_dup_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        }).catch(() => {});
+        return false;
+      }
     }
 
     try {
@@ -149,7 +176,8 @@ class EmailService {
         status,
         sentAt: new Date(),
         timestamp: new Date(),
-        errorMessage
+        errorMessage,
+        idempotencyKey,
       }).catch(() => {});
     }
 

@@ -5,7 +5,7 @@ class NotificationService {
   /**
    * Dispatches in-app notification and optional email.
    */
-  async createNotification({ userId, title, message, type = "general", ticketId, userEmail }) {
+  async createNotification({ userId, title, message, type = "general", ticketId, userEmail, idempotencyKey }) {
     try {
       // 1. In-App Notification
       const notif = await Notification.create({
@@ -18,7 +18,8 @@ class NotificationService {
 
       // 2. Email Notification (if email provided)
       if (userEmail) {
-        await sendEmail(userEmail, title, message).catch(err => {
+        const key = idempotencyKey || (ticketId ? `${type}_${userEmail}_${ticketId}` : null);
+        await sendEmail(userEmail, title, message, { ticketId, emailType: type, idempotencyKey: key }).catch(err => {
           console.warn(`[Notification] Failed to send email to ${userEmail}:`, err.message);
         });
       }
@@ -41,6 +42,7 @@ class NotificationService {
       type: "ticket_created",
       ticketId: ticket._id,
       userEmail: user.email,
+      idempotencyKey: `ticket_created_${ticket._id}`,
     });
   }
 
@@ -56,6 +58,7 @@ class NotificationService {
       type: "ticket_assigned",
       ticketId: ticket._id,
       userEmail: engineer.email,
+      idempotencyKey: `ticket_assigned_${ticket._id}_${engineer._id}`,
     });
   }
 
@@ -69,9 +72,10 @@ class NotificationService {
         userId: ticket.assignedTo._id || ticket.assignedTo,
         title,
         message,
-        type: "sla_breached",
+        type: `sla_${breachType}_breached`,
         ticketId: ticket._id,
         userEmail: ticket.assignedTo.email,
+        idempotencyKey: `sla_${breachType}_${ticket._id}`,
       });
     }
   }

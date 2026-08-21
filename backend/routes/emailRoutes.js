@@ -18,6 +18,7 @@ router.post("/inbound", handleInboundWebhook);
 router.get("/config", protect, requireRole("admin"), getEmailConfig);
 router.put("/config", protect, requireRole("admin"), updateEmailConfig);
 router.post("/test", protect, requireRole("admin"), sendTestEmail);
+router.post("/send", protect, requireRole("admin"), sendTestEmail);
 router.get("/logs", protect, requireRole("admin"), getEmailLogs);
 
 module.exports = router;

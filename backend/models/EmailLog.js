@@ -45,6 +45,12 @@ const emailLogSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    idempotencyKey: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -52,5 +58,6 @@ const emailLogSchema = new mongoose.Schema(
 );
 
 emailLogSchema.index({ organizationId: 1, sentAt: -1 });
+emailLogSchema.index({ idempotencyKey: 1, status: 1 });
 
 module.exports = mongoose.model("EmailLog", emailLogSchema);

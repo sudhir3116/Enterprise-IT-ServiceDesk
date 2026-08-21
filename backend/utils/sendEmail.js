@@ -37,7 +37,7 @@ const isValidRecipientEmail = (to) => {
   return true;
 };
 
-const recordEmailLog = async ({ recipient, subject, emailType, status, errorMessage, ticketId, organizationId }) => {
+const recordEmailLog = async ({ recipient, subject, emailType, status, errorMessage, ticketId, organizationId, idempotencyKey }) => {
   try {
     await EmailLog.create({
       ticketId: ticketId || null,
@@ -49,14 +49,20 @@ const recordEmailLog = async ({ recipient, subject, emailType, status, errorMess
       sentAt: new Date(),
       timestamp: new Date(),
       errorMessage: errorMessage || "",
+      idempotencyKey: idempotencyKey || null,
     });
   } catch (err) {
-    console.error("[EmailLog] Log creation failed:", err.message);
+    if (err.code === 11000) {
+      console.log(`[EmailLog] Duplicate idempotencyKey blocked at DB level: ${idempotencyKey}`);
+    } else {
+      console.error("[EmailLog] Log creation failed:", err.message);
+    }
   }
 };
 
 const sendEmail = async (to, subject, content, options = {}) => {
   const { ticketId, organizationId, emailType } = options;
+  const idempotencyKey = options.idempotencyKey || (ticketId ? `${emailType || subject}_${to}_${ticketId}` : null);
 
   // 1. Check if email notifications are enabled globally
   if (!isEmailNotificationsEnabled()) {
@@ -69,6 +75,7 @@ const sendEmail = async (to, subject, content, options = {}) => {
       errorMessage: "Email notifications disabled via ENABLE_EMAIL_NOTIFICATIONS=false",
       ticketId,
       organizationId,
+      idempotencyKey,
     });
     return { success: false, status: "SKIPPED", reason: "disabled" };
   }
@@ -84,11 +91,34 @@ const sendEmail = async (to, subject, content, options = {}) => {
       errorMessage: `Recipient '${to}' rejected: invalid format or fake demo domain`,
       ticketId,
       organizationId,
+      idempotencyKey,
     });
     return { success: false, status: "SKIPPED", reason: "invalid_recipient" };
   }
 
-  // 3. Test environment bypass
+  // 3. Database-backed Idempotency Check (Prevent duplicate sending across server restarts)
+  if (idempotencyKey) {
+    const existingLog = await EmailLog.findOne({
+      idempotencyKey,
+      status: { $in: ["SENT", "sent"] },
+    });
+    if (existingLog) {
+      console.log(`[Email] SKIPPED (Duplicate Idempotency Key): key='${idempotencyKey}' already sent to ${to}`);
+      await recordEmailLog({
+        recipient: to,
+        subject,
+        emailType,
+        status: "SKIPPED",
+        errorMessage: `Duplicate event suppressed by DB idempotency key: ${idempotencyKey}`,
+        ticketId,
+        organizationId,
+        idempotencyKey: `skipped_dup_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      });
+      return { success: false, status: "SKIPPED", reason: "duplicate_idempotency" };
+    }
+  }
+
+  // 4. Test environment bypass
   if (process.env.NODE_ENV === "test") {
     console.log(`[Email] Test Mode — Bypassed actual SMTP send to ${to}`);
     await recordEmailLog({
@@ -99,6 +129,7 @@ const sendEmail = async (to, subject, content, options = {}) => {
       errorMessage: "Test mode mock send",
       ticketId,
       organizationId,
+      idempotencyKey,
     });
     return { success: true, status: "SENT" };
   }
@@ -166,6 +197,7 @@ Please do not reply directly to this email.
       errorMessage: "",
       ticketId,
       organizationId,
+      idempotencyKey,
     });
     return { success: true, status: "SENT" };
   } catch (error) {
@@ -178,6 +210,7 @@ Please do not reply directly to this email.
       errorMessage: error.message,
       ticketId,
       organizationId,
+      idempotencyKey,
     });
     return { success: false, status: "FAILED", error: error.message };
   }
