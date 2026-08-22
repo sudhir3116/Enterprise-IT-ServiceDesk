@@ -121,13 +121,27 @@ const createOrganization = async (req, res, next) => {
   }
 };
 
-// List all organizations (Admin)
+// List all organizations (Admin) — paginated
 const getAllOrganizations = async (req, res, next) => {
   try {
-    const organizations = await Organization.find({}).sort({ createdAt: -1 });
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const skip = (page - 1) * limit;
+
+    const [total, organizations] = await Promise.all([
+      Organization.countDocuments({}),
+      Organization.find({}).sort({ createdAt: -1 }).skip(skip).limit(limit)
+    ]);
+
     res.status(200).json({
       success: true,
+      data: organizations,
       organizations,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasMore: page * limit < total,
     });
   } catch (error) {
     next(error);

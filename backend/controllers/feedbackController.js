@@ -8,6 +8,8 @@ const getFeedback = async (req, res, next) => {
     const items = await feedbackService.getFeedbackList(req.user, {
       status:   req.query.status,
       category: req.query.category,
+      page:     req.query.page,
+      limit:    req.query.limit,
     });
     res.status(200).json(items);
   } catch (err) {

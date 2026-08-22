@@ -29,12 +29,14 @@ export default function AdminEngineers() {
     setLoading(true)
     setError(null)
     try {
-      const [ticketsData, usersData] = await Promise.all([
+      const [ticketsRes, usersRes] = await Promise.all([
         getTickets(),
         api.get('/auth/users').then(res => res.data)
       ])
-      setTickets(ticketsData)
-      setUsers(usersData.filter(u => u.role === 'support_engineer'))
+      const ticketsList = Array.isArray(ticketsRes) ? ticketsRes : (ticketsRes?.data || ticketsRes?.tickets || [])
+      const usersList = Array.isArray(usersRes) ? usersRes : (usersRes?.data || usersRes?.users || [])
+      setTickets(ticketsList)
+      setUsers(usersList.filter(u => u.role === 'support_engineer'))
     } catch (err) {
       setError('Failed to load analyst workloads.')
     } finally {

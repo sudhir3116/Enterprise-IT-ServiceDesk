@@ -76,13 +76,30 @@ const getBugsForUser = async (user, filters = {}) => {
   if (filters.severity) query.severity  = filters.severity;
   if (filters.assignedDeveloper) query.assignedDeveloper = filters.assignedDeveloper;
 
-  const bugs = await BugReport.find(query)
-    .populate("ticketId",          "ticketNumber title priority status createdAt")
-    .populate("createdBy",         "name email")
-    .populate("assignedDeveloper", "name email")
-    .sort({ createdAt: -1 });
+  const page = parseInt(filters.page) || 1;
+  const limit = Math.min(parseInt(filters.limit) || 20, 100);
+  const skip = (page - 1) * limit;
 
-  return bugs;
+  const [total, bugs] = await Promise.all([
+    BugReport.countDocuments(query),
+    BugReport.find(query)
+      .populate("ticketId",          "ticketNumber title priority status createdAt")
+      .populate("createdBy",         "name email")
+      .populate("assignedDeveloper", "name email")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+  ]);
+
+  return {
+    bugs,
+    data: bugs,
+    page,
+    limit,
+    total,
+    totalPages: Math.ceil(total / limit),
+    hasMore: page * limit < total,
+  };
 };
 
 /**

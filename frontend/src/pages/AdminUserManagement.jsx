@@ -37,9 +37,12 @@ export default function AdminUserManagement() {
   const [showImport, setShowImport] = useState(false)
 
   async function loadUsers() {
+    setLoading(true)
+    setError(null)
     try {
       const res = await api.get('/auth/users')
-      setUsers(res.data)
+      const userList = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.users || [])
+      setUsers(userList)
       setSelectedIds([])
     } catch (err) {
       setError('Failed to load user directory.')

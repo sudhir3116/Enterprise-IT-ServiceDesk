@@ -2,9 +2,11 @@ const Ticket = require("../models/Ticket");
 const User = require("../models/User");
 const sendEmail = require("../utils/sendEmail");
 const Notification = require("../models/Notification");
-const { logAction } = require("../utils/auditLogger");
 const Comment = require("../models/Comment");
 const ticketService = require("../services/ticketService");
+const notificationService = require("../services/notificationService");
+const { logAction } = require("../utils/auditLogger");
+const { isStaffRole, isRequesterRole } = require("../middleware/authMiddleware");
 
 // Create Ticket
 const createTicket = async (req, res, next) => {
@@ -91,7 +93,7 @@ const getTickets = async (req, res, next) => {
       tickets.map(async (t) => {
         const tObj = t.toObject();
         const commentsQuery = { ticket: t._id };
-        if (req.user.role === "requester") {
+        if (!isStaffRole(req.user.role, req.user.dbRole)) {
           commentsQuery.isInternal = false;
         }
         const dbComments = await Comment.find(commentsQuery)
@@ -195,53 +197,11 @@ const updateTicketStatus = async (req, res, next) => {
         after: { status: targetStatus, ticketNumber: ticket.ticketNumber }
       }).catch(() => {});
 
-      // In-app notification to creator
+      // In-app & email notification via notificationService (DB idempotent)
       try {
-        await Notification.create({
-          recipient: ticket.createdBy._id,
-          title: "Ticket Status Updated",
-          message: `Your ticket "${ticket.title}" status has been set to "${targetStatus}".`,
-          ticketId: ticket._id
-        });
+        await notificationService.notifyStatusChanged(ticket, oldStatus, targetStatus);
       } catch (err) {
-        console.error("Failed to create status change notification:", err.message);
-      }
-
-      // Send Ticket Status Changed Email
-      try {
-        const emailHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Ticket Status Update</title>
-          <style>
-            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f5f6; color: #333333; margin: 0; padding: 0; }
-            .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-            .header { background: #3b82f6; padding: 24px 20px; text-align: center; color: #ffffff; }
-            .content { padding: 30px 20px; line-height: 1.6; }
-            .card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 20px; margin: 20px 0; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h2>IT HelpDesk Update</h2>
-            </div>
-            <div class="content">
-              <p style="font-weight: 600; margin-top: 0;">Support Ticket Status Transitioned</p>
-              <p>Your ticket: <strong>"${ticket.title}"</strong> has been updated to status: <strong>${targetStatus}</strong>.</p>
-              <div class="card">
-                <strong>Status Change:</strong> ${oldStatus} &rarr; ${targetStatus}
-              </div>
-            </div>
-          </div>
-        </body>
-        </html>
-        `;
-        await sendEmail(ticket.createdBy.email, `Support Ticket Status Update: ${ticket.title} (${targetStatus})`, emailHtml);
-      } catch (err) {
-        console.error("Status transition email failed:", err.message);
+        console.error("Status transition notification failed:", err.message);
       }
     }
 
@@ -251,61 +211,11 @@ const updateTicketStatus = async (req, res, next) => {
       if (engineer) {
         logs.push(`Ticket assigned to ${engineer.name}`);
 
-        // In-app notification to assignee
+        // In-app & email notification via notificationService (DB idempotent)
         try {
-          await Notification.create({
-            recipient: engineer._id,
-            title: "New Support Task Assigned",
-            message: `You have been assigned to investigate ticket "${ticket.title}".`,
-            ticketId: ticket._id
-          });
+          await notificationService.notifyTicketAssigned(ticket, engineer);
         } catch (err) {
-          console.error("Failed to notify assignee:", err.message);
-        }
-
-        // In-app notification to creator
-        try {
-          await Notification.create({
-            recipient: ticket.createdBy._id,
-            title: "Ticket Support Representative Allocated",
-            message: `Support Representative ${engineer.name} has been assigned to work on ticket "${ticket.title}".`,
-            ticketId: ticket._id
-          });
-        } catch (err) {
-          console.error("Failed to notify creator about assignment:", err.message);
-        }
-
-        // Send Ticket Assigned Email
-        try {
-          const emailHtml = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <title>Ticket Assigned to You</title>
-            <style>
-              body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f5f6; color: #333333; margin: 0; padding: 0; }
-              .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-              .header { background: #3b82f6; padding: 24px 20px; text-align: center; color: #ffffff; }
-              .content { padding: 30px 20px; line-height: 1.6; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h2>IT HelpDesk Assignment</h2>
-              </div>
-              <div class="content">
-                <p style="font-weight: 600; margin-top: 0;">New Ticket Assignment</p>
-                <p>Hello ${engineer.name}, you have been assigned to investigate the support ticket: <strong>"${ticket.title}"</strong>.</p>
-              </div>
-            </div>
-          </body>
-          </html>
-          `;
-          await sendEmail(engineer.email, "New Support Assignment: " + ticket.title, emailHtml);
-        } catch (err) {
-          console.error("Assignment email failed:", err.message);
+          console.error("Assignment notification failed:", err.message);
         }
       }
     }
@@ -474,7 +384,7 @@ const addComment = async (req, res, next) => {
 
     // Fetch the updated ticket comments list from standalone Comment collection
     const commentsQuery = { ticket: ticket._id };
-    if (req.user.role === "requester") {
+    if (!isStaffRole(req.user.role, req.user.dbRole)) {
       commentsQuery.isInternal = false;
     }
     const dbComments = await Comment.find(commentsQuery)
@@ -511,7 +421,7 @@ const getCommentsForTicket = async (req, res, next) => {
     }
 
     const commentsQuery = { ticket: ticket._id };
-    if (["customer", "requester", "employee"].includes(req.user.role)) {
+    if (!isStaffRole(req.user.role, req.user.dbRole)) {
       commentsQuery.isInternal = false;
     }
 
@@ -586,7 +496,7 @@ const getTicketById = async (req, res, next) => {
 
     // Fetch comments from standalone collection and filter based on user role
     const commentsQuery = { ticket: ticket._id };
-    if (["customer", "requester", "employee"].includes(req.user.role)) {
+    if (!isStaffRole(req.user.role, req.user.dbRole)) {
       commentsQuery.isInternal = false;
     }
     const dbComments = await Comment.find(commentsQuery)

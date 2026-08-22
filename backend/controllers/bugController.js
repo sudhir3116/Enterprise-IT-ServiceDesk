@@ -9,6 +9,8 @@ const getBugs = async (req, res, next) => {
       status:            req.query.status,
       severity:          req.query.severity,
       assignedDeveloper: req.query.assignedDeveloper,
+      page:              req.query.page,
+      limit:             req.query.limit,
     });
     res.status(200).json(bugs);
   } catch (err) {

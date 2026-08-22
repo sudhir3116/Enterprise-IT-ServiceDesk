@@ -39,12 +39,14 @@ export default function AdminTickets({ isEngineerOnly = false }) {
     setLoading(true)
     setError(null)
     try {
-      const [ticketsData, usersData] = await Promise.all([
+      const [ticketsRes, usersRes] = await Promise.all([
         getTickets(),
         role === 'admin' ? api.get('/auth/users').then(res => res.data) : Promise.resolve([])
       ])
-      setTickets(ticketsData)
-      if (role === 'admin') setUsers(usersData)
+      const ticketsList = Array.isArray(ticketsRes) ? ticketsRes : (ticketsRes?.data || ticketsRes?.tickets || [])
+      const usersList = Array.isArray(usersRes) ? usersRes : (usersRes?.data || usersRes?.users || [])
+      setTickets(ticketsList)
+      if (role === 'admin') setUsers(usersList)
       setSelectedIds([])
     } catch (err) {
       setError('Failed to fetch tickets.')

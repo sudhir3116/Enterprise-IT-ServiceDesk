@@ -197,10 +197,16 @@ const SLA_HOURS = { Critical: 4, High: 8, Medium: 24, Low: 72 };
 
 // ── Pre-save hook: sequential ticket number + SLA deadline ───────────────────
 ticketSchema.pre("save", async function () {
-  // Generate TKT-XXXX on new tickets
+  // Generate TKT-XXXX atomically on new tickets using Counter
   if (this.isNew && !this.ticketNumber) {
-    const count = await mongoose.model("Ticket").countDocuments();
-    this.ticketNumber = `TKT-${String(1000 + count + 1).padStart(4, "0")}`;
+    try {
+      const Counter = mongoose.model("Counter");
+      const seq = await Counter.next("ticketNumber");
+      this.ticketNumber = `TKT-${String(1000 + seq).padStart(4, "0")}`;
+    } catch (err) {
+      const count = await mongoose.model("Ticket").countDocuments();
+      this.ticketNumber = `TKT-${String(1000 + count + 1).padStart(4, "0")}`;
+    }
   }
 
   // Calculate priority dynamically from impact and urgency

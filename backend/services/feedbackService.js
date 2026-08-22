@@ -36,12 +36,29 @@ const getFeedbackList = async (user, filters = {}) => {
   if (filters.status)   query.status   = filters.status;
   if (filters.category) query.category = filters.category;
 
-  const feedback = await ProductFeedback.find(query)
-    .populate("createdBy",   "name email")
-    .populate("respondedBy", "name email")
-    .sort({ createdAt: -1 });
+  const page = parseInt(filters.page) || 1;
+  const limit = Math.min(parseInt(filters.limit) || 20, 100);
+  const skip = (page - 1) * limit;
 
-  return feedback;
+  const [total, feedback] = await Promise.all([
+    ProductFeedback.countDocuments(query),
+    ProductFeedback.find(query)
+      .populate("createdBy",   "name email")
+      .populate("respondedBy", "name email")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+  ]);
+
+  return {
+    feedback,
+    data: feedback,
+    page,
+    limit,
+    total,
+    totalPages: Math.ceil(total / limit),
+    hasMore: page * limit < total,
+  };
 };
 
 /**

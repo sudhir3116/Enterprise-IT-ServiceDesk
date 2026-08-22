@@ -42,7 +42,7 @@ async function seedDemoData() {
     const usersData = [
       {
         name: "Cartrabbit Admin",
-        email: "demo.admin@gmail.com",
+        email: "demo.admin@example.com",
         mobileNumber: "9876543210",
         password: hashedPassword,
         role: "admin",
@@ -54,7 +54,7 @@ async function seedDemoData() {
       },
       {
         name: "Support Engineer Alex",
-        email: "demo.agent@gmail.com",
+        email: "demo.agent@example.com",
         mobileNumber: "9876543211",
         password: hashedPassword,
         role: "support_engineer",
@@ -67,7 +67,7 @@ async function seedDemoData() {
       },
       {
         name: "Developer Chris",
-        email: "demo.dev@gmail.com",
+        email: "demo.dev@example.com",
         mobileNumber: "9876543212",
         password: hashedPassword,
         role: "developer",
@@ -79,7 +79,7 @@ async function seedDemoData() {
       },
       {
         name: "Merchant User (Shopify Store)",
-        email: "demo.requester@gmail.com",
+        email: "demo.requester@example.com",
         mobileNumber: "9876543213",
         password: hashedPassword,
         role: "customer",

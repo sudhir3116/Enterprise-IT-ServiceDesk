@@ -30,8 +30,10 @@ export default function EmployeeDashboard() {
           api.get('/notifications?limit=50')
         ])
         if (!mounted) return
-        setTickets(ticketsRes.data)
-        setNotifications(notifsRes.data)
+        const ticketList = Array.isArray(ticketsRes.data) ? ticketsRes.data : (ticketsRes.data?.data || ticketsRes.data?.tickets || [])
+        const notifList = Array.isArray(notifsRes.data) ? notifsRes.data : (notifsRes.data?.data || notifsRes.data?.notifications || [])
+        setTickets(ticketList)
+        setNotifications(notifList)
       } catch (err) {
         if (mounted) setError('Failed to load dashboard workspace data.')
       } finally {

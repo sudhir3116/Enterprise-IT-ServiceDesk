@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
+import { flushSync } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import api, { setAccessToken } from '../services/api';
 import { refreshToken as refreshTokenApi, getMe as getMeApi, logout as logoutApi } from '../services/authApi';
@@ -85,10 +86,12 @@ export function AuthProvider({ children }) {
     console.log('[AuthContext] login() called for:', userData?.email);
     clearPendingUser();
     setAccessToken(token);
-    setUser(userData);
-    setOrganization(orgData || userData?.organization || null);
-    setPermissions(perms || []);
-    setIsAuthenticated(true);
+    flushSync(() => {
+      setUser(userData);
+      setOrganization(orgData || userData?.organization || null);
+      setPermissions(perms || []);
+      setIsAuthenticated(true);
+    });
   }, [clearPendingUser]);
 
   const logout = useCallback(async () => {

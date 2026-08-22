@@ -20,7 +20,7 @@ const authLimiter = rateLimit({
 
 /**
  * General API Rate Limiter
- * Applied to: /api endpoints
+ * Applied to: /api endpoints (excluding OAuth SSO redirect paths)
  * Limits: 100 requests per 15 minutes per IP (5000 in test mode)
  */
 const apiLimiter = rateLimit({
@@ -28,6 +28,10 @@ const apiLimiter = rateLimit({
   max: isTest ? 5000 : 100,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    const path = req.originalUrl || req.path || "";
+    return path.includes("/auth/google") || path.includes("/auth/microsoft");
+  },
   message: {
     success: false,
     message: "Too many requests from this IP, please try again after 15 minutes.",

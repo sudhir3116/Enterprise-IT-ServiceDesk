@@ -34,8 +34,8 @@ export default function AdminAutomations() {
         api.get('/automations'),
         api.get('/automations/history')
       ])
-      setRules(rRes.data)
-      setHistory(hRes.data)
+      setRules(Array.isArray(rRes.data) ? rRes.data : (rRes.data?.data || rRes.data?.rules || []))
+      setHistory(Array.isArray(hRes.data) ? hRes.data : (hRes.data?.data || hRes.data?.history || []))
     } catch (err) {
       console.error('Failed to load automation rules:', err)
     } finally {

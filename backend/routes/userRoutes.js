@@ -14,8 +14,8 @@ const {
 const { protect, requireRole } = require("../middleware/authMiddleware");
 
 // Self Profile Updates (PATCH /api/users/profile & PUT /api/users/profile)
-router.patch("/profile", requireRole(), updateUserProfile);
-router.put("/profile", requireRole(), updateUserProfile);
+router.patch("/profile", protect, requireRole(), updateUserProfile);
+router.put("/profile", protect, requireRole(), updateUserProfile);
 
 // GET /api/users - Admin & Support Engineer
 router.get("/", protect, requireRole("admin", "support_engineer", "agent"), getAllUsers);
@@ -51,6 +51,6 @@ router.put(
 );
 
 // DELETE /api/users/:id - Admin only
-router.delete("/:id", protect, requireRole("admin"), deleteUserRequest);
+router.delete("/:id", protect, requireRole("admin"), deleteUserByAdmin);
 
 module.exports = router;

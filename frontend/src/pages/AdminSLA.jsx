@@ -35,7 +35,8 @@ export default function AdminSLA() {
     setError(null)
     try {
       const res = await api.get('/slas')
-      setSlas(res.data)
+      const slaList = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.policies || res.data?.slas || [])
+      setSlas(slaList)
     } catch (err) {
       console.error('Failed to load SLA policies:', err)
       setError('Failed to load SLA policies from backend.')

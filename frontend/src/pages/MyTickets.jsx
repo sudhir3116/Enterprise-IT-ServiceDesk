@@ -22,7 +22,8 @@ export default function MyTickets() {
     async function load() {
       try {
         const data = await getTickets()
-        setTickets(data)
+        const ticketList = Array.isArray(data) ? data : (data?.data || data?.tickets || [])
+        setTickets(ticketList)
       } catch (err) {
         setError('Failed to fetch your tickets.')
       } finally {

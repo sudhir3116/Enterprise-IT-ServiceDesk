@@ -50,26 +50,26 @@ router.get("/verify-email/:token", verifyEmail);
 router.post("/resend-verification", resendVerificationValidator, resendVerificationEmail);
 
 // User & Profile Management
-router.get("/me", requireRole(), getMe);
+router.get("/me", protect, requireRole(), getMe);
 router.get("/approval-status", (req, res, next) => {
   if (req.query && req.query.email) {
     return getApprovalStatus(req, res, next);
   }
   return protect(req, res, () => getApprovalStatus(req, res, next));
 });
-router.get("/profile", requireRole(), getProfile);
-router.get("/users", protect, requireRole("admin", "agent"), getAllUsers);
+router.get("/profile", protect, requireRole(), getProfile);
+router.get("/users", protect, requireRole("admin", "support_engineer", "agent"), getAllUsers);
 router.post("/users", protect, requireRole("admin"), createUserByAdmin);
 router.put("/users/:id/role", protect, requireRole("admin"), updateUserRole);
 router.delete("/users/:id", protect, requireRole("admin"), deleteUserByAdmin);
-router.put("/profile", requireRole(), updateUserProfile);
-router.patch("/profile", requireRole(), updateUserProfile);
-router.put("/users/:id/password", requireRole(), updatePassword);
-router.delete("/delete-account", requireRole(), deleteAccount);
+router.put("/profile", protect, requireRole(), updateUserProfile);
+router.patch("/profile", protect, requireRole(), updateUserProfile);
+router.put("/users/:id/password", protect, requireRole(), updatePassword);
+router.delete("/delete-account", protect, requireRole(), deleteAccount);
 
 // Session Management
-router.get("/sessions", requireRole(), getActiveSessions);
-router.delete("/sessions/:sessionId", requireRole(), revokeSession);
-router.delete("/sessions", requireRole(), revokeAllSessions);
+router.get("/sessions", protect, requireRole(), getActiveSessions);
+router.delete("/sessions/:sessionId", protect, requireRole(), revokeSession);
+router.delete("/sessions", protect, requireRole(), revokeAllSessions);
 
 module.exports = router;

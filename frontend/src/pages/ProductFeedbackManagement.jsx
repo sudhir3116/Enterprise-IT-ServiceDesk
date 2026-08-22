@@ -42,7 +42,8 @@ export default function ProductFeedbackManagement() {
       const params = {}
       if (filterStatus) params.status = filterStatus
       const data = await getFeedbackList(params)
-      setItems(data)
+      const itemList = Array.isArray(data) ? data : (data?.data || data?.feedback || [])
+      setItems(itemList)
     } catch (err) {
       addToast('Failed to load feedback', 'error')
     } finally {

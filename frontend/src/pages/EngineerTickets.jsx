@@ -38,7 +38,8 @@ export default function EngineerTickets() {
     try {
       // Scoped ticket fetch (engineers retrieve tickets assigned to them, created by them, or matching their team category)
       const res = await api.get('/tickets?limit=100')
-      setTickets(res.data)
+      const ticketList = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.tickets || [])
+      setTickets(ticketList)
     } catch (err) {
       console.error(err)
       setError('Failed to fetch tickets queue. Please reload the page.')

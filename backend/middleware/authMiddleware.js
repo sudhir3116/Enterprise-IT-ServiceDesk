@@ -144,19 +144,16 @@ const requireRole = (...allowedRoles) => {
   };
 };
 
-// Admin/Agent helper — supports both normalized and legacy role names
+// Admin-only middleware — strictly enforces admin role
 const adminOnly = (req, res, next) => {
   const role = req.user?.role;
   const dbRole = req.user?.dbRole;
-  if (
-    ["admin", "support_engineer", "agent"].includes(role) ||
-    ["admin", "agent"].includes(dbRole)
-  ) {
+  if (role === "admin" || dbRole === "admin") {
     return next();
   }
   return res.status(403).json({
     success: false,
-    message: "Forbidden",
+    message: "Forbidden: Administrator privileges required",
   });
 };
 

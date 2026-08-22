@@ -33,7 +33,8 @@ export default function AdminRoles() {
     setLoading(true)
     try {
       const res = await api.get('/roles')
-      setRoles(res.data)
+      const roleList = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.roles || [])
+      setRoles(roleList)
     } catch (err) {
       setError('Failed to load roles.')
     } finally {

@@ -30,7 +30,8 @@ export default function AdminPendingApprovals() {
     setLoading(true)
     try {
       const res = await api.get('/users/pending')
-      setPendingUsers(res.data)
+      const userList = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.users || res.data?.pendingUsers || [])
+      setPendingUsers(userList)
     } catch (err) {
       console.error('Failed to load pending users:', err)
       addToast(err.response?.data?.message || 'Failed to load pending users.', 'error')

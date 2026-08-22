@@ -40,7 +40,8 @@ export default function DeveloperBugDashboard() {
     setLoading(true)
     try {
       const data = await getBugs()
-      setBugs(data)
+      const bugList = Array.isArray(data) ? data : (data?.data || data?.bugs || [])
+      setBugs(bugList)
     } catch (err) {
       addToast('Failed to load assigned bugs', 'error')
     } finally {

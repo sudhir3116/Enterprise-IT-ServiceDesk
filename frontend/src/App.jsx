@@ -148,7 +148,7 @@ function AppRouter() {
           <Route path="/admin/notifications" element={<AdminNotifications />} />
           <Route path="/admin/settings" element={<AdminSettings />} />
           <Route path="/admin/email-settings" element={<AdminEmailSettings />} />
-          <Route path="/knowledge-base" element={<KnowledgeBase />} />
+          <Route path="/admin/knowledge-base" element={<KnowledgeBase />} />
           {/* Module 8 */}
           <Route path="/admin/bugs" element={<EngineerBugInvestigation />} />
           <Route path="/admin/feedback" element={<ProductFeedbackManagement />} />
@@ -187,6 +187,7 @@ function AppRouter() {
           <Route path="/engineer/ticket/:id" element={<EngineerTicketDetails />} />
           <Route path="/engineer/profile" element={<EngineerProfile />} />
           <Route path="/engineer/notifications" element={<EngineerNotifications />} />
+          <Route path="/engineer/knowledge-base" element={<KnowledgeBase />} />
           {/* Module 8 */}
           <Route path="/engineer/bugs" element={<EngineerBugInvestigation />} />
         </Route>
@@ -211,15 +212,19 @@ function AppRouter() {
           </ProtectedRoute>
         }>
           <Route path="/ticket/:id" element={<UpdateTicket />} />
+          <Route path="/knowledge-base" element={<KnowledgeBase />} />
         </Route>
 
         {/* ── Short redirects ────────────────────────────────── */}
-        <Route path="/create-ticket" element={<Navigate to="/employee/create-ticket" replace />} />
-        <Route path="/my-tickets" element={<Navigate to="/employee/my-tickets" replace />} />
+        <Route path="/create-ticket" element={<Navigate to={user ? "/employee/create-ticket" : "/login"} replace />} />
+        <Route path="/my-tickets" element={<Navigate to={user ? "/employee/my-tickets" : "/login"} replace />} />
         <Route path="/profile" element={<Navigate to={user ? getSettingsPath(role) : '/login'} replace />} />
-        <Route path="/admin" element={<Navigate to="/login" replace />} />
-        <Route path="/employee" element={<Navigate to="/login" replace />} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/admin" element={<Navigate to={user ? getDashboardPath(role) : '/login'} replace />} />
+        <Route path="/employee" element={<Navigate to={user ? getDashboardPath(role) : '/login'} replace />} />
+        <Route path="/engineer" element={<Navigate to={user ? getDashboardPath(role) : '/login'} replace />} />
+        <Route path="/agent" element={<Navigate to={user ? getDashboardPath(role) : '/login'} replace />} />
+        <Route path="/requester" element={<Navigate to={user ? getDashboardPath(role) : '/login'} replace />} />
+        <Route path="/" element={<Navigate to={user ? getDashboardPath(role) : '/login'} replace />} />
         <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
     </>

@@ -109,7 +109,8 @@ export default function UpdateTicket() {
     if (role === 'admin') {
       try {
         const res = await api.get('/auth/users')
-        setUsers(res.data.filter(u => u.role === 'support_engineer' || u.role === 'agent'))
+        const userList = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.users || [])
+        setUsers(userList.filter(u => u.role === 'support_engineer' || u.role === 'agent'))
       } catch (err) {
         console.error('Failed to load analysts', err)
       }

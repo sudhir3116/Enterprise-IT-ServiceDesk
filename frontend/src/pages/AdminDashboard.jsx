@@ -37,7 +37,8 @@ export default function AdminDashboard() {
         const t = await getTickets()
         if (!mounted) return
         setStats(s)
-        setRecentTickets(t.slice(0, 8))
+        const ticketList = Array.isArray(t) ? t : (t?.data || t?.tickets || [])
+        setRecentTickets(ticketList.slice(0, 8))
       } catch (e) {
         console.error(e)
         if (!mounted) return

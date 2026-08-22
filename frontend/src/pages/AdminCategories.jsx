@@ -38,9 +38,9 @@ export default function AdminCategories() {
         api.get('/departments'),
         api.get('/slas')
       ])
-      setCategories(catRes.data)
-      setDepartments(deptRes.data)
-      setSlas(slaRes.data)
+      setCategories(Array.isArray(catRes.data) ? catRes.data : (catRes.data?.data || catRes.data?.categories || []))
+      setDepartments(Array.isArray(deptRes.data) ? deptRes.data : (deptRes.data?.data || deptRes.data?.departments || []))
+      setSlas(Array.isArray(slaRes.data) ? slaRes.data : (slaRes.data?.data || slaRes.data?.slas || []))
     } catch (err) {
       setError('Failed to load category data.')
     } finally {

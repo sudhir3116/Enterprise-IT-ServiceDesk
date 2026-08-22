@@ -77,12 +77,29 @@ export default function Login() {
       console.log('[Login] Submitting credentials for:', email)
       const data = await loginApi({ email, password, rememberMe })
       console.log('[Login] API response received. accessToken exists:', !!data.accessToken, '| user:', data.user?.email, '| role:', data.user?.role)
+      
       login(data.user, data.accessToken)
-      // Role comes exclusively from the API (RBAC system) — never from client-side identity checks
-      const role = data.user?.role || 'employee'
-      const dashPath = getDashboardPath(role)
-      console.log('[Login] Navigating to dashboard:', dashPath)
-      navigate(dashPath, { replace: true })
+
+      const role = data.user?.role || 'customer'
+      const normRole = (role || '').toString().toLowerCase().trim()
+      const defaultDash = getDashboardPath(normRole)
+      
+      let targetPath = defaultDash
+      const fromPath = location.state?.from?.pathname
+      if (fromPath && !fromPath.includes('/login') && !fromPath.includes('/register')) {
+        if (normRole === 'admin' && fromPath.startsWith('/admin')) {
+          targetPath = fromPath
+        } else if ((normRole === 'support_engineer' || normRole === 'agent') && fromPath.startsWith('/engineer')) {
+          targetPath = fromPath
+        } else if ((normRole === 'customer' || normRole === 'employee' || normRole === 'requester') && fromPath.startsWith('/employee')) {
+          targetPath = fromPath
+        } else if (normRole === 'developer' && fromPath.startsWith('/developer')) {
+          targetPath = fromPath
+        }
+      }
+
+      console.log('[Login] Navigating to target path:', targetPath)
+      navigate(targetPath, { replace: true })
     } catch (err) {
       console.error('[Login] Login error caught:', err)
       let errMsg = 'Invalid email or password.'

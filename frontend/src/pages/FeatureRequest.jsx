@@ -54,7 +54,8 @@ export default function FeatureRequest() {
       if (filterStatus)   params.status   = filterStatus
       if (filterCategory) params.category = filterCategory
       const data = await getFeedbackList(params)
-      setItems(data)
+      const itemList = Array.isArray(data) ? data : (data?.data || data?.feedback || [])
+      setItems(itemList)
     } catch (err) {
       addToast('Failed to load feature requests', 'error')
     } finally {

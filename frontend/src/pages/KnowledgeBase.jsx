@@ -173,8 +173,9 @@ export default function KnowledgeBase() {
     setError(null)
     try {
       const data = await getArticles({ search, category: catFilter, page, limit: LIMIT })
-      setArticles(data.articles || [])
-      setTotal(data.total || 0)
+      const articleList = Array.isArray(data) ? data : (data?.data || data?.articles || [])
+      setArticles(articleList)
+      setTotal(data?.total ?? articleList.length)
     } catch (err) {
       setError(err.response?.data?.message || err.message)
     } finally {

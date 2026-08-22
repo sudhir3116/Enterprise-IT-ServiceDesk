@@ -28,7 +28,8 @@ export default function EngineerDashboard() {
       try {
         const res = await api.get('/tickets?limit=100')
         if (mounted) {
-          setTickets(res.data)
+          const ticketList = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.tickets || [])
+          setTickets(ticketList)
         }
       } catch (err) {
         console.error('Failed to load tickets', err)

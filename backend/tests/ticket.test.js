@@ -21,8 +21,24 @@ describe("Ticket Lifecycle Integration Tests", () => {
     if (mongoose.connection.readyState === 0) {
       await mongoose.connect(process.env.MONGO_URI);
     }
+    const User = require("../models/User");
+    const bcrypt = require("bcryptjs");
+    let testAdmin = await User.findOne({ role: "admin", accountStatus: "active" });
+    if (!testAdmin) {
+      testAdmin = await User.create({
+        name: "Test Admin",
+        email: "test.admin@example.com",
+        password: await bcrypt.hash("Password123!", 10),
+        role: "admin",
+        accountStatus: "active",
+        isApproved: true,
+      });
+    } else {
+      testAdmin.password = await bcrypt.hash("Password123!", 10);
+      await testAdmin.save();
+    }
     const loginRes = await request(app).post("/api/auth/login").send({
-      email: "sudhir3116@gmail.com",
+      email: testAdmin.email,
       password: "Password123!",
     });
     adminToken = loginRes.body.accessToken;

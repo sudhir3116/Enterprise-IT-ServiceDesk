@@ -52,7 +52,8 @@ export default function EngineerBugInvestigation() {
       if (filterStatus)   params.status   = filterStatus
       if (filterSeverity) params.severity  = filterSeverity
       const data = await getBugs(params)
-      setBugs(data)
+      const bugList = Array.isArray(data) ? data : (data?.data || data?.bugs || [])
+      setBugs(bugList)
     } catch (err) {
       addToast(err.response?.data?.message || 'Failed to load bug reports', 'error')
     } finally {

@@ -27,7 +27,8 @@ export default function EmployeeNotifications() {
     setError(null)
     try {
       const res = await api.get('/notifications')
-      setNotifications(res.data)
+      const notifList = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.notifications || [])
+      setNotifications(notifList)
     } catch (err) {
       console.error(err)
       setError('Failed to fetch notifications.')

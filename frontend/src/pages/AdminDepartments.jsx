@@ -35,8 +35,8 @@ export default function AdminDepartments() {
         api.get('/departments'),
         api.get('/auth/users')
       ])
-      setDepartments(deptRes.data)
-      setUsers(userRes.data)
+      setDepartments(Array.isArray(deptRes.data) ? deptRes.data : (deptRes.data?.data || deptRes.data?.departments || []))
+      setUsers(Array.isArray(userRes.data) ? userRes.data : (userRes.data?.data || userRes.data?.users || []))
     } catch (err) {
       setError('Failed to load departments.')
     } finally {

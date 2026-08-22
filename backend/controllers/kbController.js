@@ -46,11 +46,28 @@ const getArticles = async (req, res, next) => {
       filter.$text = { $search: req.query.q };
     }
 
-    const articles = await KnowledgeArticle.find(filter)
-      .populate("author", "name email")
-      .sort({ createdAt: -1 });
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const skip = (page - 1) * limit;
 
-    res.status(200).json(articles);
+    const [total, articles] = await Promise.all([
+      KnowledgeArticle.countDocuments(filter),
+      KnowledgeArticle.find(filter)
+        .populate("author", "name email")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+    ]);
+
+    res.status(200).json({
+      data: articles,
+      articles,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasMore: page * limit < total,
+    });
   } catch (error) {
     next(error);
   }
